@@ -37,31 +37,36 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
 
             try {
 
-                if (query == null || query.equals("")) return;
+                if (query.length() < 7) {
+                    // TODO: Send message explaining that format is "L1-L2 message"
+                    //  Doesn't work: execute(new SendChatAction(update.getChannelPost().getChatId(), "msg wrong"));
+                    return;
+                }
 
-                final String lang = "en-ru"; // TODO: Decide in query (or configuration?)
+                final String lang = query.substring(0, 5); // Format like "en-ru"
+                final String text = query.substring(6);
 
-                System.out.println("Translating (" + lang + ") : " + query);
-                final Call<YandexResponse> call = yandex.translate(ApiKeys.YANDEX_API_KEY, query, lang);
+                System.out.println("Translating (" + lang + ") : '" + text + "'");
+                final Call<YandexResponse> call = yandex.translate(ApiKeys.YANDEX_API_KEY, text, lang);
 
                 final Response<YandexResponse> response;
                 try {
                     response = call.execute();
                 } catch (IOException e) {
-                    sendResult(inlineQuery, "Error translating: " + query);
+                    sendResult(inlineQuery, "Error", "Error translating (" + lang + ") '" + query + "'");
                     e.printStackTrace();
                     return;
                 }
 
                 if (response.code() != 200) {
-                    sendResult(inlineQuery, "Could not translate: " + query);
+                    sendResult(inlineQuery, "Error", "Bad response translating (" + lang + ") '" + query + "'");
                     System.out.println("Response status is not 200");
                     return;
                 }
 
                 final String translation = response.body().text.get(0);
-                System.out.println("Translation: " + translation);
-                sendResult(inlineQuery, translation);
+                System.out.println("Translation: '" + translation + "'");
+                sendResult(inlineQuery, lang, "- " + translation + "\n" + "- " + text);
 
             } catch (TelegramApiException e) {
                 e.printStackTrace();
@@ -83,20 +88,21 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
         System.out.println("Message text: " + message.getText());
     }
 
-    private void sendResult(InlineQuery inlineQuery, String text) throws TelegramApiException {
+    private void sendResult(InlineQuery inlineQuery, String title, String text) throws TelegramApiException {
 
         final String id = "1"; // Every result should have a different id
 
         execute(new AnswerInlineQuery()
                 .setInlineQueryId(inlineQuery.getId())
-                .setResults(buildResult(text, id)));
+                .setResults(buildResult(title, text, id)));
     }
 
-    private InlineQueryResultArticle buildResult(String translation, String id) {
+    private InlineQueryResultArticle buildResult(String title, String translation, String id) {
         return new InlineQueryResultArticle()
                 .setId(id)
-                .setTitle("Sample title")
+                .setTitle(title)
                 .setDescription(translation)
+                .setThumbWidth(1) // TODO: Would work?
                 .setInputMessageContent(new InputTextMessageContent()
                         .setParseMode(ParseMode.MARKDOWN) // Optional
                         .setMessageText(translation));

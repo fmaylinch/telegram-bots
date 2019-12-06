@@ -1,7 +1,6 @@
 package com.codethen.telegram;
 
 import com.codethen.telegram.lanxatbot.LanXatTelegramBot;
-import com.codethen.yandex.YandexService;
 import com.codethen.yandex.YandexServiceFactory;
 import org.telegram.telegrambots.ApiContextInitializer;
 import org.telegram.telegrambots.meta.TelegramBotsApi;
@@ -16,8 +15,7 @@ public class RegisterBots {
         ApiContextInitializer.init();
         final TelegramBotsApi api = new TelegramBotsApi();
 
-        final YandexService yandex = YandexServiceFactory.build();
-        api.registerBot(new LanXatTelegramBot(yandex));
+        api.registerBot(new LanXatTelegramBot(YandexServiceFactory.build()));
 
         System.out.println("Bots registered!");
     }
