@@ -1,0 +1,5 @@
+# IntelliJ IDEA files
+.idea/
+lanxat-bot.iml
+
+target/
