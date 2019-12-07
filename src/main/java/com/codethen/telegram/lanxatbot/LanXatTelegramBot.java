@@ -10,6 +10,7 @@ import kotlin.Pair;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.AnswerInlineQuery;
 import org.telegram.telegrambots.meta.api.methods.ParseMode;
+import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.inlinequery.InlineQuery;
@@ -151,7 +152,7 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
         return new Pair<String, String>(matcher.group(1), matcher.group(2));
     }
 
-    private void processMessageOrCommand(Update update) {
+    private void processMessageOrCommand(Update update) throws TelegramApiException {
 
         if (!update.hasMessage()) {
             System.out.println("Received update without message");
@@ -165,8 +166,26 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
             return;
         }
 
-        // TODO: May be a command like "/start" or "/yandexkey"
         System.out.println("Message text: " + message.getText());
+
+        if (message.isCommand()) {
+            processCommand(update.getMessage());
+        } else {
+            sendMessage(update.getMessage().getChatId(),
+                    "I can only understand some commands. Type `/` to see them.");
+        }
+    }
+
+    private void sendMessage(Long chatId, String markdownText) throws TelegramApiException {
+        execute(new SendMessage()
+                .setChatId(chatId)
+                .setText(markdownText)
+                .setParseMode(ParseMode.MARKDOWN));
+    }
+
+    private void processCommand(Message message) throws TelegramApiException {
+        sendMessage(message.getChatId(),
+                "Sorry, the command `" + message.getText() + "` is not implemented yet");
     }
 
     private void sendInfoResult(InlineQuery inlineQuery, String message) throws TelegramApiException {
@@ -192,7 +211,7 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
                 .setTitle(title)
                 .setDescription(translation)
                 .setInputMessageContent(new InputTextMessageContent()
-                        .setParseMode(ParseMode.MARKDOWN) // Optional
+                        .setParseMode(ParseMode.MARKDOWN)
                         .setMessageText(translation));
     }
 
