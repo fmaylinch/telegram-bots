@@ -1,6 +1,7 @@
 package com.codethen.telegram;
 
 import com.codethen.ApiKeys;
+import com.codethen.profile.MongoUserProfileRepository;
 import com.codethen.telegram.lanxatbot.LanXatTelegramBot;
 import com.codethen.telegram.lanxatbot.profile.UserProfile;
 import com.codethen.telegram.lanxatbot.profile.UserProfileRepository;
@@ -22,12 +23,22 @@ public class RegisterBots {
         ApiContextInitializer.init();
         final TelegramBotsApi api = new TelegramBotsApi();
 
+        final MongoUserProfileRepository mongoUserProfileRepository = new MongoUserProfileRepository();
+        // fillUserProfiles(mongoProfileRepository);
+
         api.registerBot(
                 new LanXatTelegramBot(
                     YandexServiceFactory.build(),
-                    buildFakeUserProfileRepo())); // TODO: Use a real repository
+                        mongoUserProfileRepository));
 
         System.out.println("Bots registered!");
+    }
+
+    private static void fillUserProfiles(MongoUserProfileRepository mongoUserProfileRepository) {
+
+        System.out.println("Filling some user profiles in mongo db");
+        mongoUserProfileRepository.saveOrUpdate(USER_PROFILE_1);
+        mongoUserProfileRepository.saveOrUpdate(USER_PROFILE_2);
     }
 
     private static UserProfileRepository buildFakeUserProfileRepo() {
@@ -36,19 +47,8 @@ public class RegisterBots {
 
             private Map<Integer, UserProfile> fakeUserProfiles = new HashMap<>();
             {
-                fakeUserProfiles.put(143015357,
-                        new UserProfile(143015357,
-                                "ru", "en",
-                                "ru", "en",
-                                ApiKeys.YANDEX_API_KEY
-                        ));
-
-                fakeUserProfiles.put(1065512701,
-                        new UserProfile(1065512701,
-                                "ru", "en",
-                                "en", "ru",
-                                ApiKeys.YANDEX_API_KEY
-                        ));
+                fakeUserProfiles.put(USER_PROFILE_1.getUserId(), USER_PROFILE_1);
+                fakeUserProfiles.put(USER_PROFILE_2.getUserId(), USER_PROFILE_2);
             }
 
             @Nullable
@@ -71,4 +71,15 @@ public class RegisterBots {
             }
         };
     }
+
+    public static final UserProfile USER_PROFILE_1 = new UserProfile(143015357,
+            "ru", "en",
+            "ru", "en",
+            ApiKeys.YANDEX_API_KEY
+    );
+    public static final UserProfile USER_PROFILE_2 = new UserProfile(1065512701,
+            "ru", "en",
+            "en", "ru",
+            ApiKeys.YANDEX_API_KEY
+    );
 }
