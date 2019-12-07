@@ -107,6 +107,7 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
 
             execute(new AnswerInlineQuery()
                     .setInlineQueryId(inlineQuery.getId())
+                    .setCacheTime(0) // TODO: Maybe adjust later as needed
                     .setResults(
                             buildResult(request.langFrom, request.text, "1"),
                             buildResult(request.langTo, translation, "2"),
@@ -135,10 +136,7 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
             throw new YandexException("Unexpected bad response from Yandex API");
         }
 
-        final String result = response.body().text.get(0);
-        System.out.println("-> " + result);
-
-        return result;
+        return response.body().text.get(0);
     }
 
     private String getUserInfo(User user) {

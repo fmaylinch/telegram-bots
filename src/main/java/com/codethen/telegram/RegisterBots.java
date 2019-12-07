@@ -56,7 +56,7 @@ public class RegisterBots {
 
                 if (fakeUserProfiles.containsKey(userId)) {
                     final UserProfile profile = fakeUserProfiles.get(userId);
-                    System.out.println("Returning fake profile: " + profile);
+                    // System.out.println("Returning fake profile: " + profile);
                     return profile;
                 } else {
                     System.out.println("No fake user profile for userId: " + userId);
