@@ -1,6 +1,7 @@
 package com.codethen.telegram;
 
 import com.codethen.ApiKeys;
+import com.codethen.profile.CachedUserProfileRepository;
 import com.codethen.profile.MongoUserProfileRepository;
 import com.codethen.telegram.lanxatbot.LanXatTelegramBot;
 import com.codethen.telegram.lanxatbot.profile.UserProfile;
@@ -23,7 +24,8 @@ public class RegisterBots {
         ApiContextInitializer.init();
         final TelegramBotsApi api = new TelegramBotsApi();
 
-        final MongoUserProfileRepository mongoUserProfileRepository = new MongoUserProfileRepository();
+        final UserProfileRepository mongoUserProfileRepository =
+                new CachedUserProfileRepository(new MongoUserProfileRepository());
         // fillUserProfiles(mongoProfileRepository);
 
         api.registerBot(

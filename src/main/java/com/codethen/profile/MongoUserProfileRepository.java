@@ -29,7 +29,8 @@ public class MongoUserProfileRepository implements UserProfileRepository {
     @Override
     public UserProfile getProfileById(Integer userId) {
 
-        // TODO: Add cache
+        System.out.println("Loading profile from database: " + userId);
+
         return mongoTemplate.findOne(
                 Query.query(Criteria.where("userId").is(userId)),
                 UserProfile.class, "users")
@@ -39,7 +40,8 @@ public class MongoUserProfileRepository implements UserProfileRepository {
     @Override
     public void saveOrUpdate(UserProfile profile) {
 
-        // TODO: Update cache
+        System.out.println("Storing profile into database: " + profile);
+
         final UpdateResult result = mongoTemplate.upsert(
                 Query.query(Criteria.where("userId").is(profile.getUserId())),
                 new Update() // TODO: How to update the whole object?

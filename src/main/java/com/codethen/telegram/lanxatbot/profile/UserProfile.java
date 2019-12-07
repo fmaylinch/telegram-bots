@@ -85,7 +85,6 @@ public class UserProfile {
                 ", langTo='" + langTo + '\'' +
                 ", langOtherFrom='" + langOtherFrom + '\'' +
                 ", langOtherTo='" + langOtherTo + '\'' +
-                ", yandexApiKey='" + yandexApiKey + '\'' +
                 '}';
     }
 }
