@@ -9,6 +9,10 @@ import org.telegram.telegrambots.ApiContextInitializer;
 import org.telegram.telegrambots.meta.TelegramBotsApi;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiRequestException;
 
+import javax.annotation.Nullable;
+import java.util.HashMap;
+import java.util.Map;
+
 public class RegisterBots {
 
     public static void main(String... args) throws TelegramApiRequestException {
@@ -26,15 +30,45 @@ public class RegisterBots {
         System.out.println("Bots registered!");
     }
 
-    private static final UserProfile FAKE_USER_PROFILE =
-            new UserProfile(ApiKeys.YANDEX_API_KEY, "ru", "en");
+    private static final UserProfile FAKE_USER_PROFILE_FERRAN =
+            new UserProfile(143015357,
+                    ApiKeys.YANDEX_API_KEY,
+                    "ru", "en",
+                    "ru", "en"
+            );
+
+    private static Map<Integer, UserProfile> fakeUserProfiles = new HashMap<>();
+    static {
+
+        fakeUserProfiles.put(143015357,
+                new UserProfile(143015357,
+                ApiKeys.YANDEX_API_KEY,
+                "ru", "en",
+                "ru", "en"
+        ));
+
+        fakeUserProfiles.put(1065512701,
+                new UserProfile(1065512701,
+                ApiKeys.YANDEX_API_KEY,
+                "ru", "en",
+                "en", "ru"
+        ));
+    }
 
     private static UserProfileRepository buildFakeUserProfileRepo() {
 
         return new UserProfileRepository() {
-            public UserProfile getProfile(String userName) {
-                System.out.println("Returning fake profile for: " + userName);
-                return FAKE_USER_PROFILE;
+
+            @Nullable
+            public UserProfile getProfile(Integer userId) {
+
+                if (fakeUserProfiles.containsKey(userId)) {
+                    System.out.println("Returning fake profile for userId: " + userId);
+                    return fakeUserProfiles.get(userId);
+                } else {
+                    System.out.println("No fake user profile for userId: " + userId);
+                    return null;
+                }
             }
         };
     }

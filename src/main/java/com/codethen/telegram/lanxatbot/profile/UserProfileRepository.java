@@ -1,5 +1,7 @@
 package com.codethen.telegram.lanxatbot.profile;
 
+import javax.annotation.Nullable;
+
 public interface UserProfileRepository {
-    UserProfile getProfile(String userName);
+    @Nullable UserProfile getProfile(Integer userId);
 }
