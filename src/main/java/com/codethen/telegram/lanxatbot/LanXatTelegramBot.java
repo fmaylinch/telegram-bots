@@ -7,7 +7,6 @@ import com.codethen.telegram.lanxatbot.profile.UserProfile;
 import com.codethen.telegram.lanxatbot.profile.UserProfileRepository;
 import com.codethen.yandex.YandexService;
 import com.codethen.yandex.model.YandexResponse;
-import kotlin.Pair;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.AnswerInlineQuery;
 import org.telegram.telegrambots.meta.api.methods.ParseMode;
@@ -22,7 +21,6 @@ import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import retrofit2.Call;
 import retrofit2.Response;
 
-import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -38,7 +36,6 @@ import java.util.regex.Pattern;
 public class LanXatTelegramBot extends TelegramLongPollingBot {
 
     private static final String END_OF_QUERY = " .";
-    private static final String LANGS_PSEUDO_PATTERN = "Lm.Lt";
 
     /**
      * TODO: Simplify behind an interface that this bot defines,
@@ -85,7 +82,7 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
             return;
         }
 
-        final UserProfile profile = userProfileRepo.getProfile(inlineQuery.getFrom().getId());
+        final UserProfile profile = userProfileRepo.getProfileById(inlineQuery.getFrom().getId());
         if (profile == null) {
             throw new InlineQueryException(inlineQuery, "Write '/yandexkey YOUR_API' to the bot to set Yandex API Key");
         }
@@ -93,7 +90,15 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
         // Remove end signal
         final String cleanQuery = query.substring(0, query.length() - END_OF_QUERY.length()).trim();
 
-        final TranslationRequest request = buildTranslationRequest(cleanQuery, profile);
+        final TranslationRequest request = buildTranslationRequest(cleanQuery, profile, false);
+
+        if (request.text == null) {
+            profile.setLangFrom(request.langFrom);
+            profile.setLangTo(request.langTo);
+            userProfileRepo.saveOrUpdate(profile);
+            sendInfoResult(inlineQuery, "Changed default translation to " + request.getLangs());
+            return;
+        }
 
         try {
             final String translation = requestYandexTranslation(request);
@@ -115,6 +120,8 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
 
     private String requestYandexTranslation(TranslationRequest request) throws YandexException {
 
+        System.out.println("Translating " + request.getLangs() + " : '" + request.text + "'");
+
         final Call<YandexResponse> call = yandex.translate(request.apiKey, request.text, request.getLangs());
 
         final Response<YandexResponse> response;
@@ -128,7 +135,10 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
             throw new YandexException("Unexpected bad response from Yandex API");
         }
 
-        return response.body().text.get(0);
+        final String result = response.body().text.get(0);
+        System.out.println("-> " + result);
+
+        return result;
     }
 
     private String getUserInfo(User user) {
@@ -136,51 +146,35 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
     }
 
     /**
-     * Parses query, with pattern "Lm.Lt M" or just "M".
-     * Lm is the language of the message M, Lt is the target language.
-     * If languages are not given, they are taken from user profile defaults.
+     * Parses query, with may fit {@link #queryWithLangsPattern} or be just a plain message.
+     * Note that {@link TranslationRequest#text} might be null, if query doesn't contain the message.
      */
-    private TranslationRequest buildTranslationRequest(String query, UserProfile profile) {
-
-        final Pair<String, String> langsFromQuery = getFromToLanguages(query);
-        final Pair<String, String> langs;
-        final String text;
-
-        if (langsFromQuery == null) {
-            langs = new Pair<String, String>(profile.getLangFrom(), profile.getLangTo());
-            text = query;
-        } else {
-            langs = langsFromQuery;
-            text = query.substring((LANGS_PSEUDO_PATTERN + " ").length());
-        }
-
-        System.out.println("Translating " + langs + " : '" + text + "'");
+    private TranslationRequest buildTranslationRequest(String query, UserProfile profile, boolean userOtherLangs) {
 
         final TranslationRequest request = new TranslationRequest();
-        request.text = text;
-        request.langFrom = langs.getFirst();
-        request.langTo = langs.getSecond();
         request.apiKey = profile.getYandexApiKey();
+
+        final Matcher matcher = queryWithLangsPattern.matcher(query);
+        if (matcher.matches()) {
+            request.langFrom = matcher.group(1);
+            request.langTo = matcher.group(2);
+            request.text = matcher.group(3);
+        } else {
+            request.langFrom = userOtherLangs ? profile.getLangOtherFrom() : profile.getLangFrom();
+            request.langTo = userOtherLangs ? profile.getLangOtherTo() : profile.getLangTo();
+            request.text = query;
+        }
+
         return request;
     }
 
-    private static final Pattern langsPattern = Pattern.compile("([a-z][a-z])\\.([a-z][a-z]) .+");
-
-    /** Tries to find "Lm.Lt" languages in the query. Returns null if not found. */
-    @Nullable
-    private Pair<String, String> getFromToLanguages(String query) {
-
-        if (query.length() < (LANGS_PSEUDO_PATTERN + " M").length()) {
-            return null;
-        }
-
-        final Matcher matcher = langsPattern.matcher(query);
-        if (!matcher.matches()) {
-            return null;
-        }
-
-        return new Pair<String, String>(matcher.group(1), matcher.group(2));
-    }
+    /** In "en.ru" matcher would capture groups: "en", "ru" */
+    private static final String langsPatternStr = "([a-z][a-z])\\.([a-z][a-z])";
+    /**
+     * In "en.ru message" matcher would capture groups: "en", "ru", "message".
+     * In "en.ru" matcher would capture groups: "en", "ru", null.
+     */
+    private static final Pattern queryWithLangsPattern = Pattern.compile(langsPatternStr + "(?:\\s+(.+))?");
 
     private void processMessageOrCommand(Update update) throws TelegramApiException {
 
@@ -208,22 +202,22 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
 
     private void processMessageAsTranslation(Message message) throws TelegramApiException {
 
-        // TODO: If you forward and write a message, it gets as two messages.
-        //       So wait for messages like "en.ru" to decide translation of next message!
-        //       In fact, a message like "en.ru" could be sent directly to setup that config...
+        final UserProfile profile = userProfileRepo.getProfileById(message.getFrom().getId());
 
-        final UserProfile profile = userProfileRepo.getProfile(message.getFrom().getId());
+        final TranslationRequest request = buildTranslationRequest(message.getText(), profile, true);
 
-        final TranslationRequest request = new TranslationRequest();
-        request.text = message.getText();
-        request.langFrom = profile.getLangOtherFrom();
-        request.langTo = profile.getLangOtherTo();
-        request.apiKey = profile.getYandexApiKey();
+        if (request.text == null) {
+            profile.setLangOtherFrom(request.langFrom);
+            profile.setLangOtherTo(request.langTo);
+            userProfileRepo.saveOrUpdate(profile);
+            sendMessage(message.getChatId(), "Changed default translation to " + request.getLangs());
+            return;
+        }
 
         try {
             final String translation = requestYandexTranslation(request);
             final String msg = "Translated " + request.getLangs() + ":\n" + translation;
-            System.out.println("Sent translation " + request.getLangs() + ": " + translation);
+            System.out.println("Sent translation " + request.getLangs() + ": '" + translation + "'");
             sendMessage(message.getChatId(), msg);
         } catch (YandexException e) {
             sendMessage(message.getChatId(), "There was an error with Yandex API: " + e.getMessage());
@@ -281,6 +275,7 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
 
     /** TODO: This could be part of {@link YandexService} */
     private static class TranslationRequest {
+
         public String text;
         public String langFrom;
         public String langTo;

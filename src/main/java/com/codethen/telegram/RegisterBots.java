@@ -30,45 +30,44 @@ public class RegisterBots {
         System.out.println("Bots registered!");
     }
 
-    private static final UserProfile FAKE_USER_PROFILE_FERRAN =
-            new UserProfile(143015357,
-                    ApiKeys.YANDEX_API_KEY,
-                    "ru", "en",
-                    "ru", "en"
-            );
-
-    private static Map<Integer, UserProfile> fakeUserProfiles = new HashMap<>();
-    static {
-
-        fakeUserProfiles.put(143015357,
-                new UserProfile(143015357,
-                ApiKeys.YANDEX_API_KEY,
-                "ru", "en",
-                "ru", "en"
-        ));
-
-        fakeUserProfiles.put(1065512701,
-                new UserProfile(1065512701,
-                ApiKeys.YANDEX_API_KEY,
-                "ru", "en",
-                "en", "ru"
-        ));
-    }
-
     private static UserProfileRepository buildFakeUserProfileRepo() {
 
         return new UserProfileRepository() {
 
+            private Map<Integer, UserProfile> fakeUserProfiles = new HashMap<>();
+            {
+                fakeUserProfiles.put(143015357,
+                        new UserProfile(143015357,
+                                "ru", "en",
+                                "ru", "en",
+                                ApiKeys.YANDEX_API_KEY
+                        ));
+
+                fakeUserProfiles.put(1065512701,
+                        new UserProfile(1065512701,
+                                "ru", "en",
+                                "en", "ru",
+                                ApiKeys.YANDEX_API_KEY
+                        ));
+            }
+
             @Nullable
-            public UserProfile getProfile(Integer userId) {
+            public UserProfile getProfileById(Integer userId) {
 
                 if (fakeUserProfiles.containsKey(userId)) {
-                    System.out.println("Returning fake profile for userId: " + userId);
-                    return fakeUserProfiles.get(userId);
+                    final UserProfile profile = fakeUserProfiles.get(userId);
+                    System.out.println("Returning fake profile: " + profile);
+                    return profile;
                 } else {
                     System.out.println("No fake user profile for userId: " + userId);
                     return null;
                 }
+            }
+
+            @Override
+            public void saveOrUpdate(UserProfile profile) {
+                System.out.println("Updating profile: " + profile);
+                fakeUserProfiles.put(profile.getUserId(), profile);
             }
         };
     }
