@@ -18,26 +18,35 @@ import java.util.Map;
 
 public class RegisterBots {
 
-    public static void main(String... args) throws TelegramApiRequestException {
+    public static void main(String[] args) throws TelegramApiRequestException {
+
+        // TODO: Setup logger
+
+        System.out.println("Reading environment variables...");
+
+        final String connectionString = getEnvChecked("mongodb.connectionString");
+        final String databaseName = getEnvChecked("mongodb.databaseName");
+        final String telegramBotApiToken = getEnvChecked("telegram.bots.api.lanxat.token");
+
+        registerBots(connectionString, databaseName, telegramBotApiToken);
+    }
+
+    public static void registerBots(String connectionString, String databaseName, String lanxatApiToken) throws TelegramApiRequestException {
 
         System.out.println("Registering bots...");
 
         ApiContextInitializer.init();
         final TelegramBotsApi api = new TelegramBotsApi();
 
-        final String connectionString = getEnvChecked("mongodb.connectionString");
-        final String databaseName = getEnvChecked("mongodb.databaseName");
-        final String telegramBotApiToken = getEnvChecked("telegram.bots.api.lanxat.token");
-
         final UserProfileRepository mongoUserProfileRepository =
-                new CachedUserProfileRepository(new MongoUserProfileRepository(MongoClients.create(
-                        connectionString), databaseName));
+                new CachedUserProfileRepository(new MongoUserProfileRepository(
+                        MongoClients.create(connectionString), databaseName));
         // fillUserProfiles(mongoProfileRepository);
 
         api.registerBot(
                 new LanXatTelegramBot(
-                        telegramBotApiToken,
-                    YandexServiceFactory.build(),
+                        lanxatApiToken,
+                        YandexServiceFactory.build(),
                         mongoUserProfileRepository));
 
         System.out.println("Bots registered!");
