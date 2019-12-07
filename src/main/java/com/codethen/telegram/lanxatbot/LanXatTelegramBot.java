@@ -1,6 +1,5 @@
 package com.codethen.telegram.lanxatbot;
 
-import com.codethen.ApiKeys;
 import com.codethen.telegram.lanxatbot.exception.InlineQueryException;
 import com.codethen.telegram.lanxatbot.exception.YandexException;
 import com.codethen.telegram.lanxatbot.profile.UserProfile;
@@ -37,15 +36,18 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
 
     private static final String END_OF_QUERY = " .";
 
+    private final String apiToken;
+
     /**
      * TODO: Simplify behind an interface that this bot defines,
      *       like we do with {@link UserProfileRepository}
      */
-    private YandexService yandex;
+    private final YandexService yandex;
 
-    private UserProfileRepository userProfileRepo;
+    private final UserProfileRepository userProfileRepo;
 
-    public LanXatTelegramBot(YandexService yandex, UserProfileRepository userProfileRepo) {
+    public LanXatTelegramBot(String apiToken, YandexService yandex, UserProfileRepository userProfileRepo) {
+        this.apiToken = apiToken;
         this.yandex = yandex;
         this.userProfileRepo = userProfileRepo;
     }
@@ -268,7 +270,7 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
     }
 
     public String getBotToken() {
-        return ApiKeys.TELEGRAM_BOT_TOKEN;
+        return apiToken;
     }
 
     /** TODO: This could be part of {@link YandexService} */

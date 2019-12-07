@@ -7,6 +7,7 @@ import com.codethen.telegram.lanxatbot.LanXatTelegramBot;
 import com.codethen.telegram.lanxatbot.profile.UserProfile;
 import com.codethen.telegram.lanxatbot.profile.UserProfileRepository;
 import com.codethen.yandex.YandexServiceFactory;
+import com.mongodb.reactivestreams.client.MongoClients;
 import org.telegram.telegrambots.ApiContextInitializer;
 import org.telegram.telegrambots.meta.TelegramBotsApi;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiRequestException;
@@ -24,16 +25,30 @@ public class RegisterBots {
         ApiContextInitializer.init();
         final TelegramBotsApi api = new TelegramBotsApi();
 
+        final String connectionString = getEnvChecked("mongodb.connectionString");
+        final String databaseName = getEnvChecked("mongodb.databaseName");
+        final String telegramBotApiToken = getEnvChecked("telegram.bots.api.lanxat.token");
+
         final UserProfileRepository mongoUserProfileRepository =
-                new CachedUserProfileRepository(new MongoUserProfileRepository());
+                new CachedUserProfileRepository(new MongoUserProfileRepository(MongoClients.create(
+                        connectionString), databaseName));
         // fillUserProfiles(mongoProfileRepository);
 
         api.registerBot(
                 new LanXatTelegramBot(
+                        telegramBotApiToken,
                     YandexServiceFactory.build(),
                         mongoUserProfileRepository));
 
         System.out.println("Bots registered!");
+    }
+
+    private static String getEnvChecked(String name) {
+        final String value = System.getenv(name);
+        if (value == null) {
+            throw new IllegalArgumentException("Missing environment variable: " + name);
+        }
+        return value;
     }
 
     private static void fillUserProfiles(MongoUserProfileRepository mongoUserProfileRepository) {

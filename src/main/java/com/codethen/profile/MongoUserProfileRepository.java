@@ -1,10 +1,9 @@
 package com.codethen.profile;
 
-import com.codethen.ApiKeys;
 import com.codethen.telegram.lanxatbot.profile.UserProfile;
 import com.codethen.telegram.lanxatbot.profile.UserProfileRepository;
 import com.mongodb.client.result.UpdateResult;
-import com.mongodb.reactivestreams.client.MongoClients;
+import com.mongodb.reactivestreams.client.MongoClient;
 import org.springframework.data.mongodb.core.ReactiveMongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
@@ -16,13 +15,8 @@ public class MongoUserProfileRepository implements UserProfileRepository {
 
     private final ReactiveMongoTemplate mongoTemplate;
 
-    public MongoUserProfileRepository() {
-
-        mongoTemplate = new ReactiveMongoTemplate(MongoClients.create(
-                "mongodb+srv://" + ApiKeys.MONGO_CREDENTIALS + "@" +
-                        "bts-cluster-r1swc.mongodb.net/lanxatbot" +
-                        "?retryWrites=true&w=majority"),
-                "lanxatbot");
+    public MongoUserProfileRepository(MongoClient mongoClient, String databaseName) {
+        mongoTemplate = new ReactiveMongoTemplate(mongoClient, databaseName);
     }
 
     @Nullable
