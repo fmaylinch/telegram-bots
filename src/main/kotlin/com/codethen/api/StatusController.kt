@@ -6,8 +6,9 @@ import org.springframework.web.bind.annotation.RestController
 @RestController
 class StatusController {
 
+    /** Simple message, just to know that the new version is up */
     @GetMapping("status")
     fun status() : String {
-        return "v0.2.1 - Improved UX, correct Markdown messages, add `)` as punctuation."
+        return "v0.2.2 - Fixed language change command"
     }
 }

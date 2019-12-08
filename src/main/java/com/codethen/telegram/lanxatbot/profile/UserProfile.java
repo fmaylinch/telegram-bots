@@ -1,9 +1,14 @@
 package com.codethen.telegram.lanxatbot.profile;
 
+import com.codethen.telegram.lanxatbot.LanXatTelegramBot;
+
 /**
  * Profile settings for a user, like languages to use by default and so on.
  *
- * I think that this class must be Java to work with Spring MongoDB ORM
+ * I think that this class must be Java to work with Spring MongoDB ORM.
+ *
+ * TODO: Group from/to languages in one object.
+ * TODO: langFrom/To should be named inlineLangFrom/To or sth similar
  */
 public class UserProfile {
 
@@ -75,6 +80,16 @@ public class UserProfile {
 
     public void setYandexApiKey(String yandexApiKey) {
         this.yandexApiKey = yandexApiKey;
+    }
+
+    /** TODO: this is also done in {@link LanXatTelegramBot.TranslationRequest#getLangs()} */
+    public String langs() {
+        return langFrom + "-" + langTo;
+    }
+
+    /** TODO: this is also done in {@link LanXatTelegramBot.TranslationRequest#getLangs()} */
+    public String langsOther() {
+        return langOtherFrom + "-" + langOtherTo;
     }
 
     @Override
