@@ -26,12 +26,13 @@ public class RegisterBots {
 
         final String connectionString = getEnvChecked("mongodb.connectionString");
         final String databaseName = getEnvChecked("mongodb.databaseName");
+        final String telegramBotName = getEnvChecked("telegram.bots.api.lanxat.name");
         final String telegramBotApiToken = getEnvChecked("telegram.bots.api.lanxat.token");
 
-        registerBots(connectionString, databaseName, telegramBotApiToken);
+        registerBots(connectionString, databaseName, telegramBotName, telegramBotApiToken);
     }
 
-    public static void registerBots(String connectionString, String databaseName, String lanxatApiToken) throws TelegramApiRequestException {
+    public static void registerBots(String connectionString, String databaseName, String botName, String lanxatApiToken) throws TelegramApiRequestException {
 
         System.out.println("Registering bots...");
 
@@ -45,6 +46,7 @@ public class RegisterBots {
 
         api.registerBot(
                 new LanXatTelegramBot(
+                        botName,
                         lanxatApiToken,
                         YandexServiceFactory.build(),
                         mongoUserProfileRepository));

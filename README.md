@@ -17,11 +17,11 @@ that translates messages using the [Yandex Translate API].
 
 Build the jar with Maven. This generates `target/lanxat-bot-1.0-SNAPSHOT.jar`.
 ```shell script
-mvn package
+mvn clean package
 ```
 
 You could then start the app if you define or pass the environment variables
-`MONGO_URL`, `MONGO_DATABASE` and `LANXAT_BOT_TOKEN`.
+`MONGO_URL`, `MONGO_DATABASE`, `LANXAT_BOT_NAME` and `LANXAT_BOT_TOKEN`.
 ```shell script
 java -jar target/lanxat-bot-1.0-SNAPSHOT.jar
 ```
@@ -36,6 +36,7 @@ Run the Docker image binding port 8080 and passing environment variables with th
 docker run -p 8080:8080 \
 -e MONGO_URL='mongodb+srv://user:pass@domain.net/database_name' \
 -e MONGO_DATABASE='database_name' \
+-e LANXAT_BOT_NAME='name_of_bot' \
 -e LANXAT_BOT_TOKEN='1234567890' \
 fmaylinch/lanxatbot
 ```

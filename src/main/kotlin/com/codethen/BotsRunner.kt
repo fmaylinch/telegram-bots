@@ -12,11 +12,12 @@ import org.springframework.stereotype.Component
 class BotsRunner(
         @Value("\${mongo.url}") val connectionString: String,
         @Value("\${mongo.database}") val databaseName: String,
-        @Value("\${telegram.lanxat.token}") val lanxatToken: String
+        @Value("\${telegram.lanxat.token}") val lanxatToken: String,
+        @Value("\${telegram.lanxat.name}") val lanxatName: String
     ) : CommandLineRunner {
 
     override fun run(vararg args: String?) {
 
-        RegisterBots.registerBots(connectionString, databaseName, lanxatToken)
+        RegisterBots.registerBots(connectionString, databaseName, lanxatName, lanxatToken)
     }
 }

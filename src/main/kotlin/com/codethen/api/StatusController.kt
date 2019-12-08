@@ -8,6 +8,6 @@ class StatusController {
 
     @GetMapping("status")
     fun status() : String {
-        return "ok"
+        return "v0.2 - Improved UX"
     }
 }
