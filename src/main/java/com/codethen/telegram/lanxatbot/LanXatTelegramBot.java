@@ -118,9 +118,11 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
         final String query = inlineQuery.getQuery();
         System.out.println("Received inline query from " + getUserInfo(inlineQuery.getFrom()) + ": `" + query + "`");
 
-        final UserProfile profile = userProfileRepo.getProfileById(inlineQuery.getFrom().getId());
+        final UserProfile profile = getProfile(inlineQuery.getFrom());
 
         if (!endsInPunctuationMark(query)) {
+            // TODO: This is wrong if there's an explicit lang config or languages specified
+            //       The TranslationRequest built afterwards contains the correct languages.
             final LangConfig langConfig = profile.getLangConfigs().get(SpecialLangConfig.inline.name());
             displayInlineHelpButton(inlineQuery, "Translating " + langConfig.shortDescription() + ". Click to know more.");
             return;
@@ -266,7 +268,7 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
 
     private void processMessageAsTranslation(Message message) throws TelegramApiException {
 
-        final UserProfile profile = userProfileRepo.getProfileById(message.getFrom().getId());
+        final UserProfile profile = getProfile(message.getFrom());
 
         final TranslationRequest request = buildTranslationRequest(message.getText(), profile, SpecialLangConfig.bot);
 
@@ -295,9 +297,49 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
 
         if (isCommand(Command.start, commandStr)) {
             processStartCommand(message, commandStr);
+        } else if (isCommand(Command.langconfig, commandStr)) {
+            processLangConfigCommand(message, commandStr);
         } else {
             sendMessage(message.getChatId(),
                     "Sorry, the commandStr `" + commandStr + "` is not implemented yet");
+        }
+    }
+
+    /**
+     * The {@link Command#langconfig} is used to display or setup language configurations.
+     */
+    private void processLangConfigCommand(Message message, String commandStr) throws TelegramApiException {
+
+        final String[] commandParts = commandStr.split("\\s+");
+
+        if (commandParts.length == 1) { // No parameters
+
+            final UserProfile profile = getProfile(message.getFrom());
+
+            final String langConfigsMarkdown = profile.getLangConfigs().entrySet().stream()
+                    .map(e -> "- `." + e.getKey() + " = " + e.getValue().queryPattern() + "`\n")
+                    .collect(Collectors.joining());
+
+            sendMessage(message.getChatId(),
+                    "You can write something like `.en.es Translate this!` to translate from English to Spanish." +
+                            " But you can setup shortcuts to select the languages to translate more easily." +
+                            " For example, you may decide that `.e` is equivalent to `.es.en` and then just write `.e Translate this!`." +
+                            " There are two special language configurations: `.bot` and `.inline`. By default," +
+                            " I will use the `.bot` configuration to translate messages you write/forward to me, and" +
+                            " I will use the `.inline` configuration to translate messages you send inline to other users." +
+                            "\n\n" +
+                            "Current language profiles:\n" + langConfigsMarkdown);
+
+        } else {
+
+            // TODO: Add way to setup. For example:
+            //  .e = .es.en
+            //  .e =     <---- remove config
+
+            final String parameter = commandParts[1];
+
+            sendMessage(message.getChatId(),
+                    "Sorry, I don't understand the " + Command.langconfig + " parameter `" + parameter + "`.");
         }
     }
 
@@ -309,9 +351,9 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
 
         final String[] commandParts = commandStr.split("\\s+");
 
-        if (commandParts.length == 1) {
+        if (commandParts.length == 1) { // No parameters
 
-            final UserProfile profile = userProfileRepo.getProfileById(message.getFrom().getId());
+            final UserProfile profile = getProfile(message.getFrom());
 
             final LangConfig langConfigBot = profile.getLangConfigs().get(SpecialLangConfig.bot.name());
             final LangConfig langConfigInline = profile.getLangConfigs().get(SpecialLangConfig.inline.name());
@@ -335,7 +377,7 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
 
             if (parameter.equals(HELP_INLINE_START_PARAM)) {
 
-                final UserProfile profile = userProfileRepo.getProfileById(message.getFrom().getId());
+                final UserProfile profile = getProfile(message.getFrom());
 
                 final LangConfig langConfigInline = profile.getLangConfigs().get(SpecialLangConfig.inline.name());
 
@@ -356,6 +398,10 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
                         "Sorry, I don't understand the " + Command.start + " parameter `" + parameter + "`.");
             }
         }
+    }
+
+    private UserProfile getProfile(User user) {
+        return userProfileRepo.getProfileById(user.getId());
     }
 
     private boolean isCommand(Command command, String text) {

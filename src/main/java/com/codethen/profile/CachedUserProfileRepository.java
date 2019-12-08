@@ -7,7 +7,6 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 
-import javax.annotation.Nullable;
 import java.time.Duration;
 import java.util.concurrent.ExecutionException;
 
@@ -32,7 +31,6 @@ public class CachedUserProfileRepository implements UserProfileRepository {
                 });
     }
 
-    @Nullable
     @Override
     public UserProfile getProfileById(Integer userId) {
         try {
