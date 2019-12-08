@@ -3,6 +3,7 @@ package com.codethen.telegram.lanxatbot;
 import com.codethen.telegram.lanxatbot.exception.InlineQueryException;
 import com.codethen.telegram.lanxatbot.exception.ProfileNotExistsException;
 import com.codethen.telegram.lanxatbot.exception.YandexException;
+import com.codethen.telegram.lanxatbot.profile.LangConfig;
 import com.codethen.telegram.lanxatbot.profile.UserProfile;
 import com.codethen.telegram.lanxatbot.profile.UserProfileRepository;
 import com.codethen.yandex.YandexService;
@@ -22,25 +23,49 @@ import retrofit2.Call;
 import retrofit2.Response;
 
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /**
  * Bot for translating messages.
+ * You can send messages to the bot, but the main feature is to use inline queries.
+ * See: https://core.telegram.org/bots/inline
  *
- * It's used via inline queries. You type, for example, `@lanxat_bot en.ru Hello, how are you? .`
- * and it will suggest the translation, that you can click to send. Note that the message
- * ends with a space and a dot ` .`. That's a signal that you finished the message and you want
- * to see the translation (I did it this way to avoid many API requests to Yandex while typing).
+ * In an inline query you type `@lanxat_bot Hello, how are you?`
+ * and it will suggest the translation depending on the translation configuration you have currently.
+ * You may also explicitly indicate the languages to use for translation in a single message
+ * (overriding the default configuration).
+ *
+ * Note that the bot is currently named lanxat_bot, but this may change. See {@link #getBotUsername()}.
  */
 public class LanXatTelegramBot extends TelegramLongPollingBot {
 
-    private static final String START_COMMAND = "/start";
-    private static final String START_COMMAND_PLUS_SPACE = START_COMMAND + " ";
-    /** /start parameter to display information about how inline mode works */
+    private enum Command {
+
+        start, langconfig;
+
+        String getText() {
+            return "/" + name();
+        }
+    }
+
+    private enum SpecialLangConfig {
+
+        /** {@link LangConfig} for inline messages */
+        inline,
+        /** {@link LangConfig} for messages sent to the bot */
+        bot
+    }
+
+    private static final Map<Command, String> commandText =
+            Arrays.stream(Command.values()).collect(Collectors.toMap(x -> x, Command::getText));
+
+    /** {@link Command#start} parameter to display information about how inline mode works */
     private static final String HELP_INLINE_START_PARAM = "help-inline";
     /** If this dot comes after the languages, it means the user wants to change the defaults */
-    public static final String CHANGE_INLINE_LANGS_DOT_INDICATOR = ".";
 
     private final String botName;
     private final String apiToken;
@@ -93,24 +118,17 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
         final String query = inlineQuery.getQuery();
         System.out.println("Received inline query from " + getUserInfo(inlineQuery.getFrom()) + ": `" + query + "`");
 
-        final UserProfile profile = getCheckedProfileById(inlineQuery.getFrom().getId());
+        final UserProfile profile = userProfileRepo.getProfileById(inlineQuery.getFrom().getId());
 
         if (!endsInPunctuationMark(query)) {
-            displayInlineHelpButton(inlineQuery, "Translating " + profile.langs() + ". Click to know more.");
+            final LangConfig langConfig = profile.getLangConfigs().get(SpecialLangConfig.inline.name());
+            displayInlineHelpButton(inlineQuery, "Translating " + langConfig.shortDescription() + ". Click to know more.");
             return;
         }
 
-        final TranslationRequest request = buildTranslationRequest(query, profile, false);
+        final TranslationRequest request = buildTranslationRequest(query, profile, SpecialLangConfig.inline);
 
         if (request.text == null) return; // No text yet
-
-        if (request.text.equals(CHANGE_INLINE_LANGS_DOT_INDICATOR)) {
-            profile.setLangFrom(request.langFrom);
-            profile.setLangTo(request.langTo);
-            userProfileRepo.saveOrUpdate(profile);
-            displayInlineHelpButton(inlineQuery, "Changed translation to " + request.getLangs() + ". Click to know more.");
-            return;
-        }
 
         try {
             final String translation = requestYandexTranslation(request);
@@ -121,22 +139,14 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
                     .setInlineQueryId(inlineQuery.getId())
                     .setCacheTime(0) // TODO: Maybe adjust later as needed
                     .setResults(
-                            buildResult(request.langFrom, request.text, "1"),
-                            buildResult(request.langTo, translation, "2"),
+                            buildResult(request.langConfig.getFrom(), request.text, "1"),
+                            buildResult(request.langConfig.getTo(), translation, "2"),
                             buildResult(request.getLangs(), "- " + translation + "\n" + "- " + request.text, "3")
                     ));
 
         } catch (YandexException e) {
             throw new InlineQueryException(inlineQuery, e.getMessage(), e);
         }
-    }
-
-    private UserProfile getCheckedProfileById(Integer userId) {
-        final UserProfile result = userProfileRepo.getProfileById(userId);
-        if (result == null) {
-            throw new ProfileNotExistsException(userId);
-        }
-        return result;
     }
 
     private void displayInlineHelpButton(InlineQuery inlineQuery, String text) throws TelegramApiException {
@@ -184,36 +194,51 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
     }
 
     /**
-     * Parses query, with may fit {@link #queryWithLangsPattern} or be just a plain message.
+     * Parses query, witch may be {@link #langsAndMessagePattern}, {@link #langConfigAndMessagePattern},
+     * or otherwise it's just a plain text with no pattern.
+     *
+     * If a pattern matches, we decide the {@link LangConfig} from there
+     * (either explicit languages or one of the existing {@link UserProfile#getLangConfigs()}).
+     *
+     * If the query is a plain text, the {@link LangConfig}) is also taken from
+     * {@link UserProfile#getLangConfigs()}, according to the given {@link SpecialLangConfig}.
+     *
      * Note that {@link TranslationRequest#text} might be null if not present in the query.
      */
-    private TranslationRequest buildTranslationRequest(String query, UserProfile profile, boolean userOtherLangs) {
+    private TranslationRequest buildTranslationRequest(String query, UserProfile profile, SpecialLangConfig config) {
 
         final TranslationRequest request = new TranslationRequest();
         request.apiKey = profile.getYandexApiKey();
 
-        final Matcher matcher = queryWithLangsPattern.matcher(query);
-        if (matcher.matches()) {
-            request.langFrom = matcher.group(1);
-            request.langTo = matcher.group(2);
-            request.text = matcher.group(3);
+        final Matcher langsAndMessage = langsAndMessagePattern.matcher(query);
+        if (langsAndMessage.matches()) {
+            request.langConfig = new LangConfig(langsAndMessage.group(1), langsAndMessage.group(2));
+            request.text = langsAndMessage.group(3);
         } else {
-            request.langFrom = userOtherLangs ? profile.getLangOtherFrom() : profile.getLangFrom();
-            request.langTo = userOtherLangs ? profile.getLangOtherTo() : profile.getLangTo();
-            request.text = query;
+            final Matcher langConfigAndMessage = langConfigAndMessagePattern.matcher(query);
+            if (langConfigAndMessage.matches()) {
+                final String langConfigName = langConfigAndMessage.group(1);
+                request.langConfig = profile.getLangConfigs().get(langConfigName);
+                request.text = langConfigAndMessage.group(2);
+            } else {
+                request.langConfig = profile.getLangConfigs().get(config.name());
+                request.text = query;
+            }
         }
 
         return request;
     }
 
-    /** In "en-ru" matcher would capture groups: "en", "ru". */
-    private static final String langsPatternStr = "([a-z][a-z])-([a-z][a-z])";
-    /**
-     * In "en-ru message." matcher would capture groups: "en", "ru", "message.".
-     * In "en-ru." matcher would capture groups: "en", "ru", ".".
-     * In "en-ru" matcher would capture groups: "en", "ru", null.
-     */
-    private static final Pattern queryWithLangsPattern = Pattern.compile(langsPatternStr + "(?:\\s*(.+))?");
+    /** In ".en.ru" matcher would capture groups: "en", "ru". */
+    private static final String langsPatternStr = "\\.([a-z][a-z])\\.([a-z][a-z])";
+    /** In ".name" matcher would capture group: "name". */
+    private static final String langConfigPatternStr = "\\.(\\w+)";
+    /** In "   message" matcher would capture group: "message". */
+    private static final String messagePatternStr = "\\s+(.+)";
+    /** In ".en.ru message" matcher would capture groups: "en", "ru", "message". */
+    private static final Pattern langsAndMessagePattern = Pattern.compile(langsPatternStr + messagePatternStr);
+    /** In ".name message" matcher would capture groups: "name", "message". */
+    private static final Pattern langConfigAndMessagePattern = Pattern.compile(langConfigPatternStr + messagePatternStr);
 
     private void processMessageOrCommand(Update update) throws TelegramApiException {
 
@@ -241,18 +266,9 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
 
     private void processMessageAsTranslation(Message message) throws TelegramApiException {
 
-        final UserProfile profile = getCheckedProfileById(message.getFrom().getId());
+        final UserProfile profile = userProfileRepo.getProfileById(message.getFrom().getId());
 
-        final TranslationRequest request = buildTranslationRequest(message.getText(), profile, true);
-
-        // In a message, we don't require the dot (since the user is sending this message)
-        if (request.text == null || request.text.equals(CHANGE_INLINE_LANGS_DOT_INDICATOR)) {
-            profile.setLangOtherFrom(request.langFrom);
-            profile.setLangOtherTo(request.langTo);
-            userProfileRepo.saveOrUpdate(profile);
-            sendMessage(message.getChatId(), "Changed default translation to " + request.getLangs());
-            return;
-        }
+        final TranslationRequest request = buildTranslationRequest(message.getText(), profile, SpecialLangConfig.bot);
 
         try {
             final String translation = requestYandexTranslation(request);
@@ -275,56 +291,75 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
 
     private void processCommand(Message message) throws TelegramApiException {
 
-        final String command = message.getText();
+        final String commandStr = message.getText();
 
-        if (command.equals(START_COMMAND) || command.startsWith(START_COMMAND_PLUS_SPACE)) {
-
-            if (command.equals(START_COMMAND)) {
-
-                final UserProfile profile = getCheckedProfileById(message.getFrom().getId());
-
-                sendMessage(message.getChatId(),
-                        "You can write messages here and I'll translate them" +
-                                " from language `" + profile.getLangOtherFrom() + "` to language `" + profile.getLangOtherTo() + "`." +
-                                " You can change the languages to translate by writing here something like `en-ru`." +
-                                " You can also use me in inline mode when talking to other people," +
-                                " by typing `@" + getBotUsername() + "` and then the message to translate." +
-                                "\n" +
-                                "\nCurrent translation here: " + profile.langsOther() +
-                                "\nCurrent translation inline: " + profile.langs()
-                );
-
-            } else  {
-
-                String parameter = command.substring((START_COMMAND_PLUS_SPACE).length());
-
-                if (parameter.equals(HELP_INLINE_START_PARAM)) {
-
-                    final UserProfile profile = getCheckedProfileById(message.getFrom().getId());
-
-                    sendMessage(message.getChatId(),
-                            "You can send translated messages while talking to other people." +
-                                    " In any chat, type `@" + getBotUsername() + "` followed by your message," +
-                                    " and finish it with punctuation mark `" + PUNCTUATION_CHARS + "` to see the results." +
-                                    " You can then choose to send the original message, the translated message or both." +
-                                    " The results will be translated" +
-                                    " from language `" + profile.getLangFrom() + "` to language `" + profile.getLangTo() + "`." +
-                                    " You can change the languages to translate by entering something like" +
-                                    " `en-ru" + CHANGE_INLINE_LANGS_DOT_INDICATOR + "` in the inline message (note the ending dot). " +
-                                    " You can also choose the languages for a single message (without affecting the default setting)," +
-                                    " by typing something like `@" + getBotUsername() + " en-es Translate this to Spanish.`");
-
-                } else {
-
-                    sendMessage(message.getChatId(),
-                            "Sorry, I don't understand the " + START_COMMAND + " parameter `" + parameter + "`.");
-                }
-            }
+        if (isCommand(Command.start, commandStr)) {
+            processStartCommand(message, commandStr);
         } else {
+            sendMessage(message.getChatId(),
+                    "Sorry, the commandStr `" + commandStr + "` is not implemented yet");
+        }
+    }
+
+    /**
+     * The {@link Command#start} displays general instructions to the user.
+     * It may be used with parameter {@link #HELP_INLINE_START_PARAM} for instructions about inline mode.
+     */
+    private void processStartCommand(Message message, String commandStr) throws TelegramApiException {
+
+        final String[] commandParts = commandStr.split("\\s+");
+
+        if (commandParts.length == 1) {
+
+            final UserProfile profile = userProfileRepo.getProfileById(message.getFrom().getId());
+
+            final LangConfig langConfigBot = profile.getLangConfigs().get(SpecialLangConfig.bot.name());
+            final LangConfig langConfigInline = profile.getLangConfigs().get(SpecialLangConfig.inline.name());
 
             sendMessage(message.getChatId(),
-                    "Sorry, the command `" + command + "` is not implemented yet");
+                    "You can write (or forward) messages here and I'll translate them" +
+                            " from language `" + langConfigBot.getFrom() + "` to language `" + langConfigBot.getTo() + "`." +
+                            " Soon you will be able to change those default settings." +
+                            "\n\n" +
+                            "But the cool thing is using me in inline mode when talking to other people," +
+                            " by typing `@" + getBotUsername() + "` and then the message to translate." +
+                            // TODO: Use this to let the user try the inline mode: https://core.telegram.org/bots/api#inlinekeyboardbutton
+                            "\n" +
+                            "\nCurrent translation here: " + langConfigBot.shortDescription() +
+                            "\nCurrent translation inline: " + langConfigInline.shortDescription()
+            );
+
+        } else  {
+
+            String parameter = commandParts[1];
+
+            if (parameter.equals(HELP_INLINE_START_PARAM)) {
+
+                final UserProfile profile = userProfileRepo.getProfileById(message.getFrom().getId());
+
+                final LangConfig langConfigInline = profile.getLangConfigs().get(SpecialLangConfig.inline.name());
+
+                sendMessage(message.getChatId(),
+                        "You can send translated messages while talking to other people." +
+                                " In any chat, type `@" + getBotUsername() + "` followed by your message," +
+                                " and finish it with punctuation mark `" + PUNCTUATION_CHARS + "` to see the results." +
+                                " You can then choose to send the original message, the translated message or both." +
+                                " The results will be translated" +
+                                " from language `" + langConfigInline.getFrom() + "` to language `" + langConfigInline.getTo() + "`." +
+                                " Soon you will be able to change those default settings." +
+                                " You can also choose the languages for a single message (without affecting the default setting)," +
+                                " by typing something like `@" + getBotUsername() + " .en.es Translate this to Spanish.`");
+
+            } else {
+
+                sendMessage(message.getChatId(),
+                        "Sorry, I don't understand the " + Command.start + " parameter `" + parameter + "`.");
+            }
         }
+    }
+
+    private boolean isCommand(Command command, String text) {
+        return text.startsWith(commandText.get(command));
     }
 
     private void sendInfoResult(InlineQuery inlineQuery, String message) throws TelegramApiException {
@@ -366,12 +401,11 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
     public static class TranslationRequest {
 
         public String text;
-        public String langFrom;
-        public String langTo;
+        public LangConfig langConfig;
         public String apiKey;
 
         public String getLangs() {
-            return langFrom + "-" + langTo;
+            return langConfig.shortDescription();
         }
     }
 }

@@ -1,6 +1,5 @@
 package com.codethen.telegram;
 
-import com.codethen.ApiKeys;
 import com.codethen.profile.CachedUserProfileRepository;
 import com.codethen.profile.MongoUserProfileRepository;
 import com.codethen.telegram.lanxatbot.LanXatTelegramBot;
@@ -42,7 +41,8 @@ public class RegisterBots {
         final UserProfileRepository mongoUserProfileRepository =
                 new CachedUserProfileRepository(new MongoUserProfileRepository(
                         MongoClients.create(connectionString), databaseName));
-        // fillUserProfiles(mongoProfileRepository);
+
+        // fillUserProfiles(mongoUserProfileRepository);
 
         api.registerBot(
                 new LanXatTelegramBot(
@@ -62,21 +62,20 @@ public class RegisterBots {
         return value;
     }
 
-    private static void fillUserProfiles(MongoUserProfileRepository mongoUserProfileRepository) {
+    private static void fillUserProfiles(UserProfileRepository userProfileRepository) {
 
         System.out.println("Filling some user profiles in mongo db");
-        mongoUserProfileRepository.saveOrUpdate(USER_PROFILE_1);
-        mongoUserProfileRepository.saveOrUpdate(USER_PROFILE_2);
+        // userProfileRepository.saveOrUpdate(someProfile1);
+        // userProfileRepository.saveOrUpdate(someProfile2);
     }
 
     private static UserProfileRepository buildFakeUserProfileRepo() {
 
         return new UserProfileRepository() {
 
-            private Map<Integer, UserProfile> fakeUserProfiles = new HashMap<>();
-            {
-                fakeUserProfiles.put(USER_PROFILE_1.getUserId(), USER_PROFILE_1);
-                fakeUserProfiles.put(USER_PROFILE_2.getUserId(), USER_PROFILE_2);
+            private Map<Integer, UserProfile> fakeUserProfiles = new HashMap<>(); {
+                //fakeUserProfiles.put(someUserId, someProfile1);
+                //fakeUserProfiles.put(someUserId, someProfile2);
             }
 
             @Nullable
@@ -95,19 +94,8 @@ public class RegisterBots {
             @Override
             public void saveOrUpdate(UserProfile profile) {
                 System.out.println("Updating profile: " + profile);
-                fakeUserProfiles.put(profile.getUserId(), profile);
+                fakeUserProfiles.put(profile.getId(), profile);
             }
         };
     }
-
-    public static final UserProfile USER_PROFILE_1 = new UserProfile(143015357,
-            "ru", "en",
-            "ru", "en",
-            ApiKeys.YANDEX_API_KEY
-    );
-    public static final UserProfile USER_PROFILE_2 = new UserProfile(1065512701,
-            "ru", "en",
-            "en", "ru",
-            ApiKeys.YANDEX_API_KEY
-    );
 }

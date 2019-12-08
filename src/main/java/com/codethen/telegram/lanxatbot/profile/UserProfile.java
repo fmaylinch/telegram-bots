@@ -1,6 +1,7 @@
 package com.codethen.telegram.lanxatbot.profile;
 
-import com.codethen.telegram.lanxatbot.LanXatTelegramBot;
+import java.util.Date;
+import java.util.Map;
 
 /**
  * Profile settings for a user, like languages to use by default and so on.
@@ -13,65 +14,37 @@ import com.codethen.telegram.lanxatbot.LanXatTelegramBot;
 public class UserProfile {
 
     /** Telegram userId */
-    private Integer userId;
-    /** Source lang for inline translations */
-    private String langFrom;
-    /** Target lang for inline translations */
-    private String langTo;
-    /** Source lang for bot chat translations */
-    private String langOtherFrom;
-    /** Target lang for bot chat translations */
-    private String langOtherTo;
+    private Integer id;
+    /** When the profile was created */
+    private Date created;
     /** Yandex API key that will be used to translate */
     private String yandexApiKey;
+    /** Language configurations that the user can use */
+    private Map<String, LangConfig> langConfigs;
 
-    public UserProfile(Integer userId, String langFrom, String langTo, String langOtherFrom, String langOtherTo, String yandexApiKey) {
-        this.userId = userId;
-        this.langFrom = langFrom;
-        this.langTo = langTo;
-        this.langOtherFrom = langOtherFrom;
-        this.langOtherTo = langOtherTo;
-        this.yandexApiKey = yandexApiKey;
+
+    public Integer getId() {
+        return id;
     }
 
-    public Integer getUserId() {
-        return userId;
+    public void setId(Integer id) {
+        this.id = id;
     }
 
-    public void setUserId(Integer userId) {
-        this.userId = userId;
+    public Date getCreated() {
+        return created;
     }
 
-    public String getLangFrom() {
-        return langFrom;
+    public void setCreated(Date created) {
+        this.created = created;
     }
 
-    public void setLangFrom(String langFrom) {
-        this.langFrom = langFrom;
+    public Map<String, LangConfig> getLangConfigs() {
+        return langConfigs;
     }
 
-    public String getLangTo() {
-        return langTo;
-    }
-
-    public void setLangTo(String langTo) {
-        this.langTo = langTo;
-    }
-
-    public String getLangOtherFrom() {
-        return langOtherFrom;
-    }
-
-    public void setLangOtherFrom(String langOtherFrom) {
-        this.langOtherFrom = langOtherFrom;
-    }
-
-    public String getLangOtherTo() {
-        return langOtherTo;
-    }
-
-    public void setLangOtherTo(String langOtherTo) {
-        this.langOtherTo = langOtherTo;
+    public void setLangConfigs(Map<String, LangConfig> langConfigs) {
+        this.langConfigs = langConfigs;
     }
 
     public String getYandexApiKey() {
@@ -82,24 +55,12 @@ public class UserProfile {
         this.yandexApiKey = yandexApiKey;
     }
 
-    /** TODO: this is also done in {@link LanXatTelegramBot.TranslationRequest#getLangs()} */
-    public String langs() {
-        return langFrom + "-" + langTo;
-    }
-
-    /** TODO: this is also done in {@link LanXatTelegramBot.TranslationRequest#getLangs()} */
-    public String langsOther() {
-        return langOtherFrom + "-" + langOtherTo;
-    }
-
     @Override
     public String toString() {
-        return "UserProfileJava{" +
-                "userId=" + userId +
-                ", langFrom='" + langFrom + '\'' +
-                ", langTo='" + langTo + '\'' +
-                ", langOtherFrom='" + langOtherFrom + '\'' +
-                ", langOtherTo='" + langOtherTo + '\'' +
+        return "UserProfile{" +
+                "id=" + id +
+                ", created=" + created +
+                ", langConfigs=" + langConfigs +
                 '}';
     }
 }

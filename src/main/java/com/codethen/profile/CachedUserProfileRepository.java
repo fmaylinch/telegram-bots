@@ -1,5 +1,6 @@
 package com.codethen.profile;
 
+import com.codethen.telegram.lanxatbot.exception.ProfileNotExistsException;
 import com.codethen.telegram.lanxatbot.profile.UserProfile;
 import com.codethen.telegram.lanxatbot.profile.UserProfileRepository;
 import com.google.common.cache.CacheBuilder;
@@ -24,7 +25,9 @@ public class CachedUserProfileRepository implements UserProfileRepository {
                 .build(new CacheLoader<Integer, UserProfile>() {
                     @Override
                     public UserProfile load(Integer userId) {
-                        return internalRepo.getProfileById(userId);
+                        final UserProfile profile = internalRepo.getProfileById(userId);
+                        if (profile == null) throw new ProfileNotExistsException(userId);
+                        return profile;
                     }
                 });
     }
@@ -43,8 +46,8 @@ public class CachedUserProfileRepository implements UserProfileRepository {
     @Override
     public void saveOrUpdate(UserProfile profile) {
 
-        System.out.println("Storing profile and invalidating cache entry for userId: " + profile.getUserId());
+        System.out.println("Storing profile and invalidating cache entry for userId: " + profile.getId());
         internalRepo.saveOrUpdate(profile);
-        repoCache.invalidate(profile.getUserId());
+        repoCache.invalidate(profile.getId());
     }
 }
