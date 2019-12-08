@@ -76,7 +76,7 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
 
                 System.out.println("User does not have a profile: " + e.getUserId());
                 if (update.hasMessage()) {
-                    sendMessage(update.getMessage().getChatId(), "You don't have a profile yet. This bot is in development. Ask the bot creator.");
+                    sendMessage(update.getMessage().getChatId(), "You don't have a profile yet. This bot is in development. Ask the bot creator. Your userId is " + e.getUserId() +".");
                 }
             }
 
@@ -147,7 +147,7 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
                 .setResults());
     }
 
-    private static final String PUNCTUATION_CHARS = ".?!:";
+    private static final String PUNCTUATION_CHARS = ".?!:)";
 
     private boolean endsInPunctuationMark(String text) {
 
@@ -279,10 +279,10 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
 
                 sendMessage(message.getChatId(),
                         "You can write messages here and I'll translate them" +
-                                " from language '" + profile.getLangOtherFrom() + "' to language '" + profile.getLangOtherTo() + "'." +
-                                " You can change the languages to translate by writing here something like 'en-ru'." +
+                                " from language `" + profile.getLangOtherFrom() + "` to language `" + profile.getLangOtherTo() + "`." +
+                                " You can change the languages to translate by writing here something like `en-ru`." +
                                 " You can also use me in inline mode when talking to other people," +
-                                " by typing @" + getBotUsername() + " and then the message to translate.");
+                                " by typing `@" + getBotUsername() + "` and then the message to translate.");
 
             } else  {
 
@@ -294,14 +294,14 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
 
                     sendMessage(message.getChatId(),
                             "You can send translated messages while talking to other people." +
-                                    " In any chat, type @" + getBotUsername() + " followed by your message," +
-                                    " and finish it with punctuation mark (" + PUNCTUATION_CHARS + ") to see the results." +
+                                    " In any chat, type `@" + getBotUsername() + "` followed by your message," +
+                                    " and finish it with punctuation mark `" + PUNCTUATION_CHARS + "` to see the results." +
                                     " You can then choose to send the original message, the translated message or both." +
                                     " The results will be translated" +
-                                    " from language '" + profile.getLangFrom() + "' to language '" + profile.getLangTo() + "'." +
-                                    " You can change the languages to translate by entering something like 'en-ru.' in the inline message (note the ending dot). " +
+                                    " from language `" + profile.getLangFrom() + "` to language `" + profile.getLangTo() + "`." +
+                                    " You can change the languages to translate by entering something like `en-ru.` in the inline message (note the ending dot). " +
                                     " You can also choose the languages for a single message (without affecting the default setting)," +
-                                    " by typing something like '@" + getBotUsername() + " en-es Translate this to Spanish.'");
+                                    " by typing something like `@" + getBotUsername() + " en-es Translate this to Spanish.`");
 
                 } else {
 
