@@ -9,6 +9,6 @@ class StatusController {
     /** Simple message, just to know that the new version is up */
     @GetMapping("status")
     fun status() : String {
-        return "v0.3.4 - LangConfigs setup. Update inline 'Translating' langs. Button to try inline mode. Message for non existing user."
+        return "v0.3.5 - LangConfigs setup. Improved help messages."
     }
 }
