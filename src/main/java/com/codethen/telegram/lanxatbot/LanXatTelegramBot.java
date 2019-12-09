@@ -1,7 +1,6 @@
 package com.codethen.telegram.lanxatbot;
 
 import com.codethen.telegram.lanxatbot.exception.InlineQueryException;
-import com.codethen.telegram.lanxatbot.exception.LanXatException;
 import com.codethen.telegram.lanxatbot.exception.ProfileNotExistsException;
 import com.codethen.telegram.lanxatbot.exception.YandexException;
 import com.codethen.telegram.lanxatbot.profile.LangConfig;
@@ -105,12 +104,9 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
 
                 System.out.println("User does not have a profile: " + e.getUserId());
                 sendError(update, "You don't have a profile yet. This bot is in development. Ask the bot creator. Your userId is " + e.getUserId() +".");
-
-            } catch (LanXatException e) {
-
             }
 
-        } catch (TelegramApiException e) {
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }
@@ -134,17 +130,14 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
 
         final UserProfile profile = getProfile(inlineQuery.getFrom());
 
+        final TranslationRequest request = buildTranslationRequest(query, profile, SpecialLangConfig.inline);
+
         if (!endsInPunctuationMark(query)) {
-            // TODO: This is wrong if there's an explicit lang config or languages specified
-            //       The TranslationRequest built afterwards contains the correct languages.
-            final LangConfig langConfig = profile.getLangConfigs().get(SpecialLangConfig.inline.name());
-            displayInlineHelpButton(inlineQuery, "Translating " + langConfig.shortDescription() + ". Click to know more.");
+            displayInlineHelpButton(inlineQuery, "Translating " + request.langConfig.shortDescription() + ". Click to know more.");
             return;
         }
 
-        final TranslationRequest request = buildTranslationRequest(query, profile, SpecialLangConfig.inline);
-
-        if (request.text == null) return; // No text yet
+        if (request.text == null || request.text.length() == 1) return; // No text or just punctuation
 
         try {
             final String translation = requestYandexTranslation(request);
@@ -189,7 +182,7 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
 
         System.out.println("Translating " + request.getLangs() + " : '" + request.text + "'");
 
-        final Call<YandexResponse> call = yandex.translate(request.apiKey, request.text, request.getLangs());
+        final Call<YandexResponse> call = yandex.translate(request.apiKey, request.text, request.yandexLangs());
 
         final Response<YandexResponse> response;
         try {
@@ -526,6 +519,11 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
 
         public String getLangs() {
             return langConfig.shortDescription();
+        }
+
+        /** Languages as Yandex expects */
+        public String yandexLangs() {
+            return langConfig.getFrom() + "-" + langConfig.getTo();
         }
     }
 }

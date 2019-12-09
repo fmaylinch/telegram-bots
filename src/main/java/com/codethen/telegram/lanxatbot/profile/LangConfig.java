@@ -27,6 +27,6 @@ public class LangConfig {
     }
 
     public String shortDescription() {
-        return from + "-" + to;
+        return from + " -> " + to;
     }
 }
