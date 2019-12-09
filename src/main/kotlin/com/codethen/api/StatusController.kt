@@ -9,6 +9,6 @@ class StatusController {
     /** Simple message, just to know that the new version is up */
     @GetMapping("status")
     fun status() : String {
-        return "v0.3.2 - LangConfigs can be setup. Fix inline message 'Translating .aa.bb'."
+        return "v0.3.3 - LangConfigs setup. Fix inline 'Translating .aa.bb'. Button to try inline mode!"
     }
 }

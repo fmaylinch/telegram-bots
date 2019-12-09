@@ -18,6 +18,8 @@ import org.telegram.telegrambots.meta.api.objects.User;
 import org.telegram.telegrambots.meta.api.objects.inlinequery.InlineQuery;
 import org.telegram.telegrambots.meta.api.objects.inlinequery.inputmessagecontent.InputTextMessageContent;
 import org.telegram.telegrambots.meta.api.objects.inlinequery.result.InlineQueryResultArticle;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import retrofit2.Call;
 import retrofit2.Response;
@@ -29,6 +31,8 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+
+import static java.util.Collections.singletonList;
 
 /**
  * Bot for translating messages.
@@ -425,18 +429,28 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
             final LangConfig langConfigBot = profile.getLangConfigs().get(SpecialLangConfig.bot.name());
             final LangConfig langConfigInline = profile.getLangConfigs().get(SpecialLangConfig.inline.name());
 
-            sendMessage(message,
-                    "You can write (or forward) messages here and I'll translate them" +
-                            " from language `" + langConfigBot.getFrom() + "` to language `" + langConfigBot.getTo() + "`." +
-                            " Soon you will be able to change those default settings." +
-                            "\n\n" +
-                            "But the cool thing is using me in inline mode when talking to other people," +
-                            " by typing `@" + getBotUsername() + "` and then the message to translate." +
-                            // TODO: Use this to let the user try the inline mode: https://core.telegram.org/bots/api#inlinekeyboardbutton
-                            "\n" +
-                            "\nCurrent translation here: " + langConfigBot.shortDescription() +
-                            "\nCurrent translation inline: " + langConfigInline.shortDescription()
-            );
+            final String markdown = "You can write (or forward) messages here and I'll translate them" +
+                    " from language `" + langConfigBot.getFrom() + "` to language `" + langConfigBot.getTo() + "`." +
+                    " Soon you will be able to change those default settings." +
+                    "\n\n" +
+                    "But the cool thing is using me in inline mode when talking to other people," +
+                    " by typing `@" + getBotUsername() + "` and then the message to translate." +
+                    "\n" +
+                    "\nCurrent translation here: " + langConfigBot.shortDescription() +
+                    "\nCurrent translation inline: " + langConfigInline.shortDescription();
+
+            //sendMessage(message, markdown);
+
+            execute(new SendMessage()
+                    .setChatId(message.getChatId())
+                    .setText(markdown)
+                    .setParseMode(ParseMode.MARKDOWN)
+                    .setReplyMarkup(new InlineKeyboardMarkup()
+                            .setKeyboard(singletonList(singletonList(
+                                    new InlineKeyboardButton()
+                                            .setText("Try the inline mode!")
+                                            .setSwitchInlineQuery(".en.ru Have you tried @" + getBotUsername() + "?")
+                            )))));
 
         } else  {
 
