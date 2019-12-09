@@ -1,6 +1,7 @@
 package com.codethen.telegram.lanxatbot;
 
 import com.codethen.telegram.lanxatbot.exception.InlineQueryException;
+import com.codethen.telegram.lanxatbot.exception.LanXatException;
 import com.codethen.telegram.lanxatbot.exception.ProfileNotExistsException;
 import com.codethen.telegram.lanxatbot.exception.YandexException;
 import com.codethen.telegram.lanxatbot.profile.LangConfig;
@@ -22,6 +23,7 @@ import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import retrofit2.Call;
 import retrofit2.Response;
 
+import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Map;
@@ -102,13 +104,25 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
             } catch (ProfileNotExistsException e) {
 
                 System.out.println("User does not have a profile: " + e.getUserId());
-                if (update.hasMessage()) {
-                    sendMessage(update.getMessage().getChatId(), "You don't have a profile yet. This bot is in development. Ask the bot creator. Your userId is " + e.getUserId() +".");
-                }
+                sendError(update, "You don't have a profile yet. This bot is in development. Ask the bot creator. Your userId is " + e.getUserId() +".");
+
+            } catch (LanXatException e) {
+
             }
 
         } catch (TelegramApiException e) {
             e.printStackTrace();
+        }
+    }
+
+    private void sendError(Update update, String markdown) throws TelegramApiException {
+
+        if (update.hasMessage()) {
+            sendMessage(update.getMessage(), markdown);
+        } else if (update.hasInlineQuery()) {
+            sendErrorResult(update.getInlineQuery(), markdown);
+        } else {
+            System.out.println("Update without message nor inline query produced an error but I don't know where to send it: " + markdown);
         }
     }
 
@@ -191,6 +205,22 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
         return response.body().text.get(0);
     }
 
+    /** In ".en.ru" matcher would capture groups: "en", "ru". */
+    private static final String langsPatternStr = "\\.([a-z][a-z])\\.([a-z][a-z])";
+    /** In ".name" matcher would capture group: "name". */
+    private static final String langConfigPatternStr = "\\.(\\w+)";
+    /** In "   message" matcher would capture group: "message". */
+    private static final String messagePatternStr = "\\s+(.+)";
+    /** In ".en.ru message" matcher would capture groups: "en", "ru", "message". */
+    private static final Pattern langsAndMessagePattern = Pattern.compile(langsPatternStr + messagePatternStr);
+    /** In ".name message" matcher would capture groups: "name", "message". */
+    private static final Pattern langConfigAndMessagePattern = Pattern.compile(langConfigPatternStr + messagePatternStr);
+    /**
+     * In ".name = .en.ru" matcher would capture groups: "name", "en", "ru".
+     * In ".name =" matcher would capture groups: "name", null, null.
+     */
+    private static final Pattern langConfigSetupPattern = Pattern.compile(langConfigPatternStr + "\\s*=\\s*" + "(?:" + langsPatternStr + ")?");
+
     private String getUserInfo(User user) {
         return user.getUserName() + " (" + user.getId() + ")";
     }
@@ -231,17 +261,6 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
         return request;
     }
 
-    /** In ".en.ru" matcher would capture groups: "en", "ru". */
-    private static final String langsPatternStr = "\\.([a-z][a-z])\\.([a-z][a-z])";
-    /** In ".name" matcher would capture group: "name". */
-    private static final String langConfigPatternStr = "\\.(\\w+)";
-    /** In "   message" matcher would capture group: "message". */
-    private static final String messagePatternStr = "\\s+(.+)";
-    /** In ".en.ru message" matcher would capture groups: "en", "ru", "message". */
-    private static final Pattern langsAndMessagePattern = Pattern.compile(langsPatternStr + messagePatternStr);
-    /** In ".name message" matcher would capture groups: "name", "message". */
-    private static final Pattern langConfigAndMessagePattern = Pattern.compile(langConfigPatternStr + messagePatternStr);
-
     private void processMessageOrCommand(Update update) throws TelegramApiException {
 
         if (!update.hasMessage()) {
@@ -262,8 +281,23 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
         if (message.isCommand()) {
             processCommand(update.getMessage());
         } else {
-            processMessageAsTranslation(update.getMessage());
+            processMessage(update.getMessage());
         }
+    }
+
+    private void processMessage(Message message) throws TelegramApiException {
+
+        // Maybe it's a lang config setup?
+        final Matcher matcher = langConfigSetupPattern.matcher(message.getText());
+        if (matcher.matches()) {
+            final String langConfigName = matcher.group(1);
+            final LangConfig langConfig = matcher.group(2) != null ?
+                    new LangConfig(matcher.group(2), matcher.group(3)) : null;
+            setupLangConfig(langConfigName, langConfig, message);
+            return;
+        }
+
+        processMessageAsTranslation(message);
     }
 
     private void processMessageAsTranslation(Message message) throws TelegramApiException {
@@ -276,18 +310,18 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
             final String translation = requestYandexTranslation(request);
             final String msg = "Translated " + request.getLangs() + ":\n" + translation;
             System.out.println("Sent translation " + request.getLangs() + ": '" + translation + "'");
-            sendMessage(message.getChatId(), msg);
+            sendMessage(message, msg);
         } catch (YandexException e) {
-            sendMessage(message.getChatId(), "There was an error with Yandex API: " + e.getMessage());
+            sendMessage(message, "There was an error with Yandex API: " + e.getMessage());
         } catch (TelegramApiException e) {
-            sendMessage(message.getChatId(), "There was an error with Telegram API: " + e.getMessage());
+            sendMessage(message, "There was an error with Telegram API: " + e.getMessage());
         }
     }
 
-    private void sendMessage(Long chatId, String markdownText) throws TelegramApiException {
+    private void sendMessage(Message originalMessage, String markdown) throws TelegramApiException {
         execute(new SendMessage()
-                .setChatId(chatId)
-                .setText(markdownText)
+                .setChatId(originalMessage.getChatId())
+                .setText(markdown)
                 .setParseMode(ParseMode.MARKDOWN));
     }
 
@@ -300,9 +334,39 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
         } else if (isCommand(Command.langconfig, commandStr)) {
             processLangConfigCommand(message, commandStr);
         } else {
-            sendMessage(message.getChatId(),
-                    "Sorry, the commandStr `" + commandStr + "` is not implemented yet");
+            sendMessage(message, "Sorry, the commandStr `" + commandStr + "` is not implemented yet");
         }
+    }
+
+    /**
+     * Sets or removes a language configuration and sends a message about the change.
+     * If the langConfigName is a {@link SpecialLangConfig}, it won't be removed (it's not allowed).
+     */
+    private void setupLangConfig(String langConfigName, @Nullable LangConfig langConfig, Message message) throws TelegramApiException {
+
+        final UserProfile profile = getProfile(message.getFrom());
+        final String langConfigAsMarkdown = "`" + langConfigNameToPattern(langConfigName) + "`";
+        final String moreInfo = "\nSee " + commandText.get(Command.langconfig) + " for more information.";
+
+        if (langConfig != null) {
+            profile.getLangConfigs().put(langConfigName, langConfig);
+            userProfileRepo.saveOrUpdate(profile);
+            sendMessage(message, "Now " + langConfigAsMarkdown + " is set to `" + toLangsPattern(langConfig) + "`." + moreInfo);
+        } else {
+            if (isSpecialLangConfigName(langConfigName)) {
+                sendMessage(message, "The configuration " + langConfigAsMarkdown + " is special and cannot be removed." + moreInfo);
+            } else if (!profile.getLangConfigs().containsKey(langConfigName)) {
+                sendMessage(message, "The configuration " + langConfigAsMarkdown + " doesn't exist." + moreInfo);
+            } else {
+                profile.getLangConfigs().remove(langConfigName);
+                userProfileRepo.saveOrUpdate(profile);
+                sendMessage(message, "The configuration " + langConfigAsMarkdown + " was removed." + moreInfo);
+            }
+        }
+    }
+
+    private boolean isSpecialLangConfigName(String langConfigName) {
+        return Arrays.stream(SpecialLangConfig.values()).anyMatch(c -> c.name().equals(langConfigName));
     }
 
     /**
@@ -317,10 +381,10 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
             final UserProfile profile = getProfile(message.getFrom());
 
             final String langConfigsMarkdown = profile.getLangConfigs().entrySet().stream()
-                    .map(e -> "- `." + e.getKey() + " = " + e.getValue().queryPattern() + "`\n")
+                    .map(e -> "- `" + langConfigNameToPattern(e.getKey()) + " = " + toLangsPattern(e.getValue()) + "`\n")
                     .collect(Collectors.joining());
 
-            sendMessage(message.getChatId(),
+            sendMessage(message,
                     "You can write something like `.en.es Translate this!` to translate from English to Spanish." +
                             " But you can setup shortcuts to select the languages to translate more easily." +
                             " For example, you may decide that `.e` is equivalent to `.es.en` and then just write `.e Translate this!`." +
@@ -328,19 +392,29 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
                             " I will use the `.bot` configuration to translate messages you write/forward to me, and" +
                             " I will use the `.inline` configuration to translate messages you send inline to other users." +
                             "\n\n" +
+                            "You can modify/create language profiles sending me a message like `.e = .es.en`." +
+                            " That would configure `.e` to be equivalent to `.es.en`." +
+                            " To remove a configuration, write a message like `.e =` (no value after the equal sign)." +
+                            "\n\n" +
                             "Current language profiles:\n" + langConfigsMarkdown);
 
         } else {
 
-            // TODO: Add way to setup. For example:
-            //  .e = .es.en
-            //  .e =     <---- remove config
+            //final String parameter = commandParts[1];
 
-            final String parameter = commandParts[1];
-
-            sendMessage(message.getChatId(),
-                    "Sorry, I don't understand the " + Command.langconfig + " parameter `" + parameter + "`.");
+            sendMessage(message,
+                    "Sorry, the " + Command.langconfig + " command doesn't allow parameters.");
         }
+    }
+
+    /** Returns the {@link LangConfig} name with the {@link #langConfigPatternStr} pattern. */
+    private String langConfigNameToPattern(String langConfigName) {
+        return "." + langConfigName;
+    }
+
+    /** Returns the {@link LangConfig} with the {@link #langsPatternStr} pattern. */
+    private String toLangsPattern(LangConfig langConfig) {
+        return "." + langConfig.getFrom() + "." + langConfig.getTo();
     }
 
     /**
@@ -358,7 +432,7 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
             final LangConfig langConfigBot = profile.getLangConfigs().get(SpecialLangConfig.bot.name());
             final LangConfig langConfigInline = profile.getLangConfigs().get(SpecialLangConfig.inline.name());
 
-            sendMessage(message.getChatId(),
+            sendMessage(message,
                     "You can write (or forward) messages here and I'll translate them" +
                             " from language `" + langConfigBot.getFrom() + "` to language `" + langConfigBot.getTo() + "`." +
                             " Soon you will be able to change those default settings." +
@@ -381,7 +455,7 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
 
                 final LangConfig langConfigInline = profile.getLangConfigs().get(SpecialLangConfig.inline.name());
 
-                sendMessage(message.getChatId(),
+                sendMessage(message,
                         "You can send translated messages while talking to other people." +
                                 " In any chat, type `@" + getBotUsername() + "` followed by your message," +
                                 " and finish it with punctuation mark `" + PUNCTUATION_CHARS + "` to see the results." +
@@ -394,7 +468,7 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
 
             } else {
 
-                sendMessage(message.getChatId(),
+                sendMessage(message,
                         "Sorry, I don't understand the " + Command.start + " parameter `" + parameter + "`.");
             }
         }
@@ -408,31 +482,31 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
         return text.startsWith(commandText.get(command));
     }
 
-    private void sendInfoResult(InlineQuery inlineQuery, String message) throws TelegramApiException {
-        sendSingleResult(inlineQuery, "Information", message);
+    private void sendInfoResult(InlineQuery inlineQuery, String markdown) throws TelegramApiException {
+        sendSingleResult(inlineQuery, "Information", markdown);
     }
 
-    private void sendErrorResult(InlineQuery inlineQuery, String message) throws TelegramApiException {
-        sendSingleResult(inlineQuery, "Error", message);
+    private void sendErrorResult(InlineQuery inlineQuery, String markdown) throws TelegramApiException {
+        sendSingleResult(inlineQuery, "Error", markdown);
     }
 
-    private void sendSingleResult(InlineQuery inlineQuery, String title, String text) throws TelegramApiException {
+    private void sendSingleResult(InlineQuery inlineQuery, String title, String markdown) throws TelegramApiException {
 
         final String id = "1"; // Each result should have a different id
 
         execute(new AnswerInlineQuery()
                 .setInlineQueryId(inlineQuery.getId())
-                .setResults(buildResult(title, text, id)));
+                .setResults(buildResult(title, markdown, id)));
     }
 
-    private InlineQueryResultArticle buildResult(String title, String text, String id) {
+    private InlineQueryResultArticle buildResult(String title, String markdownText, String resultId) {
         return new InlineQueryResultArticle()
-                .setId(id)
+                .setId(resultId)
                 .setTitle(title)
-                .setDescription(text)
+                .setDescription(markdownText)
                 .setInputMessageContent(new InputTextMessageContent()
                         .setParseMode(ParseMode.MARKDOWN)
-                        .setMessageText(text));
+                        .setMessageText(markdownText));
     }
 
     public String getBotUsername() {

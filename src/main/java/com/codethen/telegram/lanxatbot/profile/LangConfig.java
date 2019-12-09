@@ -1,7 +1,5 @@
 package com.codethen.telegram.lanxatbot.profile;
 
-import com.codethen.telegram.lanxatbot.LanXatTelegramBot;
-
 public class LangConfig {
 
     private String from;
@@ -30,10 +28,5 @@ public class LangConfig {
 
     public String shortDescription() {
         return from + "-" + to;
-    }
-
-    /** TODO: This is actually defined in {@link LanXatTelegramBot#langsPatternStr} */
-    public String queryPattern() {
-        return "." + from + "." + to;
     }
 }
