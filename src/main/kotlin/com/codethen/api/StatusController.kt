@@ -9,6 +9,6 @@ class StatusController {
     /** Simple message, just to know that the new version is up */
     @GetMapping("status")
     fun status() : String {
-        return "v0.3.5 - LangConfigs setup. Improved help messages."
+        return "v0.3.7 - Don't count emojis to see if message ends with dot"
     }
 }

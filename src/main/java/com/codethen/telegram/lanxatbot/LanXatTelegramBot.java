@@ -1,13 +1,12 @@
 package com.codethen.telegram.lanxatbot;
 
-import com.codethen.telegram.lanxatbot.exception.InlineQueryException;
-import com.codethen.telegram.lanxatbot.exception.ProfileNotExistsException;
-import com.codethen.telegram.lanxatbot.exception.YandexException;
+import com.codethen.telegram.lanxatbot.exception.*;
 import com.codethen.telegram.lanxatbot.profile.LangConfig;
 import com.codethen.telegram.lanxatbot.profile.UserProfile;
 import com.codethen.telegram.lanxatbot.profile.UserProfileRepository;
 import com.codethen.yandex.YandexService;
 import com.codethen.yandex.model.YandexResponse;
+import emoji4j.EmojiUtils;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.AnswerInlineQuery;
 import org.telegram.telegrambots.meta.api.methods.ParseMode;
@@ -108,6 +107,10 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
 
                 System.out.println("User does not have a profile: " + e.getUserId());
                 sendError(update, "You don't have a profile yet. This bot is in development. Ask the bot creator. Your userId is " + e.getUserId() +".");
+
+            } catch (LanXatException e) {
+
+                sendError(update, e.getMessage()); // TODO: This is not markdown
             }
 
         } catch (Exception e) {
@@ -120,7 +123,7 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
         if (update.hasMessage()) {
             sendMessage(update.getMessage(), markdown);
         } else if (update.hasInlineQuery()) {
-            sendErrorResult(update.getInlineQuery(), markdown);
+            displayInlineHelpButton(update.getInlineQuery(), markdown); // TODO: Markdown not allowed here
         } else {
             System.out.println("Update without message nor inline query produced an error but I don't know where to send it: " + markdown);
         }
@@ -136,7 +139,7 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
 
         final TranslationRequest request = buildTranslationRequest(query, profile, SpecialLangConfig.inline);
 
-        if (!endsInPunctuationMark(query)) {
+        if (!endsInPunctuationMarkOrEmoji(query)) {
             displayInlineHelpButton(inlineQuery, "Translating " + request.langConfig.shortDescription() + ". Click to know more.");
             return;
         }
@@ -172,13 +175,20 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
                 .setResults());
     }
 
-    private static final String PUNCTUATION_CHARS = ".?!:)";
+    private static final String PUNCTUATION_CHARS = ".?!:;)";
 
-    private boolean endsInPunctuationMark(String text) {
+    // TODO: I think I can simplify it just by checking that the last char is not alpha-numeric,
+    //  or space, but Telegram doesn't send trailing spaces anyway.
+    private boolean endsInPunctuationMarkOrEmoji(String text) {
 
         if (text.length() == 0) return false;
 
-        final char lastChar = text.charAt(text.length() - 1);
+        // This will convert emojis to strings like "&#x1f431;"
+        // so it will count as ending in punctuation.
+        // See: https://github.com/kcthota/emoji4j
+        final String hexHtmlified = EmojiUtils.hexHtmlify(text);
+
+        final char lastChar = hexHtmlified.charAt(hexHtmlified.length() - 1);
         return PUNCTUATION_CHARS.indexOf(lastChar) >= 0;
     }
 
@@ -248,6 +258,9 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
             if (langConfigAndMessage.matches()) {
                 final String langConfigName = langConfigAndMessage.group(1);
                 request.langConfig = profile.getLangConfigs().get(langConfigName);
+                if (request.langConfig == null) {
+                    throw new LangConfigNotExistsException(langConfigName);
+                }
                 request.text = langConfigAndMessage.group(2);
             } else {
                 request.langConfig = profile.getLangConfigs().get(config.name());
