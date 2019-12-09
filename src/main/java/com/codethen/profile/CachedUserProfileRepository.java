@@ -6,6 +6,7 @@ import com.codethen.telegram.lanxatbot.profile.UserProfileRepository;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
+import com.google.common.util.concurrent.UncheckedExecutionException;
 
 import java.time.Duration;
 import java.util.concurrent.ExecutionException;
@@ -36,6 +37,8 @@ public class CachedUserProfileRepository implements UserProfileRepository {
         try {
             System.out.println("Loading profile, maybe from cache: " + userId);
             return repoCache.get(userId);
+        } catch (UncheckedExecutionException e) {
+            throw (RuntimeException) e.getCause(); // TODO: Is this the ProfileNotExistsException I throw?
         } catch (ExecutionException e) {
             throw new RuntimeException("Error accessing cache for userId " + userId, e);
         }
