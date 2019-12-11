@@ -6,7 +6,6 @@ import com.codethen.telegram.lanxatbot.profile.UserProfile;
 import com.codethen.telegram.lanxatbot.profile.UserProfileRepository;
 import com.codethen.yandex.YandexService;
 import com.codethen.yandex.model.YandexResponse;
-import emoji4j.EmojiUtils;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.AnswerInlineQuery;
 import org.telegram.telegrambots.meta.api.methods.ParseMode;
@@ -139,7 +138,7 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
 
         final TranslationRequest request = buildTranslationRequest(query, profile, SpecialLangConfig.inline);
 
-        if (!endsInPunctuationMarkOrEmoji(query)) {
+        if (!sentenceIsFinished(query)) {
             displayInlineHelpButton(inlineQuery, "Translating " + request.langConfig.shortDescription() + ". Click to know more.");
             return;
         }
@@ -175,21 +174,12 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
                 .setResults());
     }
 
-    private static final String PUNCTUATION_CHARS = ".?!:;)";
-
-    // TODO: I think I can simplify it just by checking that the last char is not alpha-numeric,
-    //  or space, but Telegram doesn't send trailing spaces anyway.
-    private boolean endsInPunctuationMarkOrEmoji(String text) {
+    private boolean sentenceIsFinished(String text) {
 
         if (text.length() == 0) return false;
 
-        // This will convert emojis to strings like "&#x1f431;"
-        // so it will count as ending in punctuation.
-        // See: https://github.com/kcthota/emoji4j
-        final String hexHtmlified = EmojiUtils.hexHtmlify(text);
-
-        final char lastChar = hexHtmlified.charAt(hexHtmlified.length() - 1);
-        return PUNCTUATION_CHARS.indexOf(lastChar) >= 0;
+        final char lastChar = text.charAt(text.length() - 1);
+        return lastChar != ',' && !Character.isLetterOrDigit(lastChar);
     }
 
     private String requestYandexTranslation(TranslationRequest request) throws YandexException {
@@ -495,7 +485,7 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
                         "**Inline mode**" +
                                 "\n\n" +
                                 "While talking to other people, type `@" + getBotUsername() + "` followed by your message," +
-                                " and finish it with punctuation mark `" + PUNCTUATION_CHARS + "` to see the results." +
+                                " and finish it with punctuation mark or emoji to see the results." +
                                 "\n\n" +
                                 "The results let you to send the original message, the translated message or both." +
                                 "\n\n" +
