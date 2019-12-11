@@ -2,6 +2,8 @@ package com.codethen.telegram.lanxatbot.profile;
 
 public class LangConfig {
 
+    public static final String ARROW = " -> ";
+
     private String from;
     private String to;
 
@@ -27,6 +29,6 @@ public class LangConfig {
     }
 
     public String shortDescription() {
-        return from + " -> " + to;
+        return from + ARROW + to;
     }
 }

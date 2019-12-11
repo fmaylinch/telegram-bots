@@ -147,16 +147,19 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
 
         try {
             final String translation = requestYandexTranslation(request);
-
             System.out.println("Translation: '" + translation + "'");
+
+            final String reverseTranslation = requestYandexTranslation(request.reverse());
+            System.out.println("Reverse translation: '" + translation + "'");
 
             execute(new AnswerInlineQuery()
                     .setInlineQueryId(inlineQuery.getId())
                     .setCacheTime(0) // TODO: Maybe adjust later as needed
                     .setResults(
-                            buildResult(request.langConfig.getFrom(), request.text, "1"),
-                            buildResult(request.langConfig.getTo(), translation, "2"),
-                            buildResult(request.getLangs(), "- " + translation + "\n" + "- " + request.text, "3")
+                            buildResult(request.langConfig.getTo(), translation, "1"),
+                            buildResult(request.langConfig.getFrom(), request.text, "2"),
+                            buildResult(request.getLangs() + LangConfig.ARROW + request.langConfig.getFrom(), reverseTranslation, "3"),
+                            buildResult(request.getLangs(), "- " + translation + "\n" + "- " + request.text, "4")
                     ));
 
         } catch (YandexException e) {
@@ -560,6 +563,16 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
         /** Languages as Yandex expects */
         public String yandexLangs() {
             return langConfig.getFrom() + "-" + langConfig.getTo();
+        }
+
+        /** Returns the a similar request but with the languages in {@link LangConfig} reversed */
+        public TranslationRequest reverse() {
+
+            final TranslationRequest result = new TranslationRequest();
+            result.text = this.text;
+            result.langConfig = new LangConfig(this.langConfig.getTo(), this.langConfig.getFrom());
+            result.apiKey = this.apiKey;
+            return result;
         }
     }
 }

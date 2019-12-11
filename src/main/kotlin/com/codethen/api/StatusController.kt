@@ -9,6 +9,6 @@ class StatusController {
     /** Simple message, just to know that the new version is up */
     @GetMapping("status")
     fun status() : String {
-        return "v0.3.8 - End sentence with punctuation or emoji"
+        return "v0.3.9 - See reversed translation"
     }
 }
