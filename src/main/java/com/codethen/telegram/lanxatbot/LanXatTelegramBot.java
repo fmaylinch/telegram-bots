@@ -30,6 +30,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import static com.codethen.telegram.lanxatbot.profile.LangConfig.ARROW;
 import static java.util.Collections.singletonList;
 
 /**
@@ -152,19 +153,27 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
             final String reverseTranslation = requestYandexTranslation(request.reverse());
             System.out.println("Reverse translation: '" + translation + "'");
 
+            final String langTo = request.langConfig.getTo();
+            final String langFrom = request.langConfig.getFrom();
+
             execute(new AnswerInlineQuery()
                     .setInlineQueryId(inlineQuery.getId())
                     .setCacheTime(0) // TODO: Maybe adjust later as needed
                     .setResults(
-                            buildResult(request.langConfig.getTo(), translation, "1"),
-                            buildResult(request.langConfig.getFrom(), request.text, "2"),
-                            buildResult(request.getLangs() + LangConfig.ARROW + request.langConfig.getFrom(), reverseTranslation, "3"),
-                            buildResult(request.getLangs(), "- " + translation + "\n" + "- " + request.text, "4")
+                            buildResult(getThumbnail(langTo), langTo, translation, "1"),
+                            buildResult(getThumbnail(langFrom), langFrom, request.text, "2"),
+                            buildResult(getThumbnail(langFrom), request.getLangs() + ARROW + langFrom, reverseTranslation, "3"),
+                            buildResult(null, request.getLangs(), "- " + translation + "\n" + "- " + request.text, "4")
                     ));
 
         } catch (YandexException e) {
             throw new InlineQueryException(inlineQuery, e.getMessage(), e);
         }
+    }
+
+    private String getThumbnail(String lang) {
+        final String countryCode = lang.equals("en") ? "gb" : lang;
+        return "https://www.countryflags.io/" + countryCode + "/flat/64.png";
     }
 
     private void displayInlineHelpButton(InlineQuery inlineQuery, String text) throws TelegramApiException {
@@ -528,14 +537,15 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
 
         execute(new AnswerInlineQuery()
                 .setInlineQueryId(inlineQuery.getId())
-                .setResults(buildResult(title, markdown, id)));
+                .setResults(buildResult(null, title, markdown, id)));
     }
 
-    private InlineQueryResultArticle buildResult(String title, String markdownText, String resultId) {
+    private InlineQueryResultArticle buildResult(String thumbUrl, String title, String markdownText, String resultId) {
         return new InlineQueryResultArticle()
                 .setId(resultId)
                 .setTitle(title)
                 .setDescription(markdownText)
+                .setThumbUrl(thumbUrl)
                 .setInputMessageContent(new InputTextMessageContent()
                         .setParseMode(ParseMode.MARKDOWN)
                         .setMessageText(markdownText));
