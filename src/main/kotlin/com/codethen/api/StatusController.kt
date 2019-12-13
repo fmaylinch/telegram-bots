@@ -9,6 +9,6 @@ class StatusController {
     /** Simple message, just to know that the new version is up */
     @GetMapping("status")
     fun status() : String {
-        return "v0.4.0 - Display flags"
+        return "v0.4.1 - Fix reverse translation"
     }
 }

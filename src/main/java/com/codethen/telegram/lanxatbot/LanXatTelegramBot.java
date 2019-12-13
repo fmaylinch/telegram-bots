@@ -150,7 +150,12 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
             final String translation = requestYandexTranslation(request);
             System.out.println("Translation: '" + translation + "'");
 
-            final String reverseTranslation = requestYandexTranslation(request.reverse());
+            final TranslationRequest revReq = new TranslationRequest();
+            revReq.text = translation;
+            revReq.langConfig = new LangConfig(request.langConfig.getTo(), request.langConfig.getFrom());
+            revReq.apiKey = request.apiKey;
+
+            final String reverseTranslation = requestYandexTranslation(revReq);
             System.out.println("Reverse translation: '" + translation + "'");
 
             final String langTo = request.langConfig.getTo();
@@ -573,16 +578,6 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
         /** Languages as Yandex expects */
         public String yandexLangs() {
             return langConfig.getFrom() + "-" + langConfig.getTo();
-        }
-
-        /** Returns the a similar request but with the languages in {@link LangConfig} reversed */
-        public TranslationRequest reverse() {
-
-            final TranslationRequest result = new TranslationRequest();
-            result.text = this.text;
-            result.langConfig = new LangConfig(this.langConfig.getTo(), this.langConfig.getFrom());
-            result.apiKey = this.apiKey;
-            return result;
         }
     }
 }
