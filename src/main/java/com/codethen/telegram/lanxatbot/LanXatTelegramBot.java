@@ -1,11 +1,15 @@
 package com.codethen.telegram.lanxatbot;
 
-import com.codethen.telegram.lanxatbot.exception.*;
+import com.codethen.telegram.lanxatbot.exception.InlineQueryException;
+import com.codethen.telegram.lanxatbot.exception.LanXatException;
+import com.codethen.telegram.lanxatbot.exception.LangConfigNotExistsException;
+import com.codethen.telegram.lanxatbot.exception.ProfileNotExistsException;
 import com.codethen.telegram.lanxatbot.profile.LangConfig;
 import com.codethen.telegram.lanxatbot.profile.UserProfile;
 import com.codethen.telegram.lanxatbot.profile.UserProfileRepository;
-import com.codethen.yandex.YandexApi;
-import com.codethen.yandex.model.YandexResponse;
+import com.codethen.telegram.lanxatbot.translate.TranslationService;
+import com.codethen.telegram.lanxatbot.translate.TranslationException;
+import com.codethen.telegram.lanxatbot.translate.TranslationRequest;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.AnswerInlineQuery;
 import org.telegram.telegrambots.meta.api.methods.ParseMode;
@@ -19,11 +23,8 @@ import org.telegram.telegrambots.meta.api.objects.inlinequery.result.InlineQuery
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
-import retrofit2.Call;
-import retrofit2.Response;
 
 import javax.annotation.Nullable;
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.regex.Matcher;
@@ -74,18 +75,14 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
     private final String botName;
     private final String apiToken;
 
-    /**
-     * TODO: Simplify behind an interface that this bot defines,
-     *       like we do with {@link UserProfileRepository}
-     */
-    private final YandexApi yandex;
+    private final TranslationService translationService;
 
     private final UserProfileRepository userProfileRepo;
 
-    public LanXatTelegramBot(String botName, String apiToken, YandexApi yandex, UserProfileRepository userProfileRepo) {
+    public LanXatTelegramBot(String botName, String apiToken, TranslationService translationService, UserProfileRepository userProfileRepo) {
         this.botName = botName;
         this.apiToken = apiToken;
-        this.yandex = yandex;
+        this.translationService = translationService;
         this.userProfileRepo = userProfileRepo;
     }
 
@@ -146,34 +143,29 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
 
         if (request.text == null || request.text.length() == 1) return; // No text or just punctuation
 
-        try {
-            final String translation = requestYandexTranslation(request);
-            System.out.println("Translation: '" + translation + "'");
+        final String translation = translationService.translate(request);
+        System.out.println("Translation: '" + translation + "'");
 
-            final TranslationRequest revReq = new TranslationRequest();
-            revReq.text = translation;
-            revReq.langConfig = new LangConfig(request.langConfig.getTo(), request.langConfig.getFrom());
-            revReq.apiKey = request.apiKey;
+        final TranslationRequest revReq = new TranslationRequest();
+        revReq.text = translation;
+        revReq.langConfig = new LangConfig(request.langConfig.getTo(), request.langConfig.getFrom());
+        revReq.apiKey = request.apiKey;
 
-            final String reverseTranslation = requestYandexTranslation(revReq);
-            System.out.println("Reverse translation: '" + translation + "'");
+        final String reverseTranslation = translationService.translate(revReq);
+        System.out.println("Reverse translation: '" + translation + "'");
 
-            final String langTo = request.langConfig.getTo();
-            final String langFrom = request.langConfig.getFrom();
+        final String langTo = request.langConfig.getTo();
+        final String langFrom = request.langConfig.getFrom();
 
-            execute(new AnswerInlineQuery()
-                    .setInlineQueryId(inlineQuery.getId())
-                    .setCacheTime(0) // TODO: Maybe adjust later as needed
-                    .setResults(
-                            buildResult(getThumbnail(langTo), langTo, translation, "1"),
-                            buildResult(getThumbnail(langFrom), langFrom, request.text, "2"),
-                            buildResult(getThumbnail(langFrom), request.getLangs() + ARROW + langFrom, reverseTranslation, "3"),
-                            buildResult(null, request.getLangs(), "- " + translation + "\n" + "- " + request.text, "4")
-                    ));
-
-        } catch (YandexException e) {
-            throw new InlineQueryException(inlineQuery, e.getMessage(), e);
-        }
+        execute(new AnswerInlineQuery()
+                .setInlineQueryId(inlineQuery.getId())
+                .setCacheTime(0) // TODO: Maybe adjust later as needed
+                .setResults(
+                        buildResult(getThumbnail(langTo), langTo, translation, "1"),
+                        buildResult(getThumbnail(langFrom), langFrom, request.text, "2"),
+                        buildResult(getThumbnail(langFrom), request.getLangs() + ARROW + langFrom, reverseTranslation, "3"),
+                        buildResult(null, request.getLangs(), "- " + translation + "\n" + "- " + request.text, "4")
+                ));
     }
 
     private String getThumbnail(String lang) {
@@ -197,26 +189,6 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
 
         final char lastChar = text.charAt(text.length() - 1);
         return lastChar != ',' && !Character.isLetterOrDigit(lastChar);
-    }
-
-    private String requestYandexTranslation(TranslationRequest request) throws YandexException {
-
-        System.out.println("Translating " + request.getLangs() + " : '" + request.text + "'");
-
-        final Call<YandexResponse> call = yandex.translate(request.apiKey, request.text, request.yandexLangs());
-
-        final Response<YandexResponse> response;
-        try {
-            response = call.execute();
-        } catch (IOException e) {
-            throw new YandexException("Unexpected error calling Yandex API", e);
-        }
-
-        if (response.code() != 200) {
-            throw new YandexException("Unexpected bad response from Yandex API");
-        }
-
-        return response.body().text.get(0);
     }
 
     /** In ".en.ru" matcher would capture groups: "en", "ru". */
@@ -324,11 +296,11 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
         final TranslationRequest request = buildTranslationRequest(message.getText(), profile, SpecialLangConfig.bot);
 
         try {
-            final String translation = requestYandexTranslation(request);
+            final String translation = translationService.translate(request);
             final String msg = "Translated " + request.getLangs() + "\n" + translation;
             System.out.println("Sent translation " + request.getLangs() + ": '" + translation + "'");
             sendMessage(message, msg);
-        } catch (YandexException e) {
+        } catch (TranslationException e) {
             sendMessage(message, "There was an error with Yandex API: " + e.getMessage());
         } catch (TelegramApiException e) {
             sendMessage(message, "There was an error with Telegram API: " + e.getMessage());
@@ -562,22 +534,5 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
 
     public String getBotToken() {
         return apiToken;
-    }
-
-    /** TODO: This could be part of {@link YandexApi} */
-    public static class TranslationRequest {
-
-        public String text;
-        public LangConfig langConfig;
-        public String apiKey;
-
-        public String getLangs() {
-            return langConfig.shortDescription();
-        }
-
-        /** Languages as Yandex expects */
-        public String yandexLangs() {
-            return langConfig.getFrom() + "-" + langConfig.getTo();
-        }
     }
 }
