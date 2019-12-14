@@ -300,9 +300,9 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
         final TranslationData request = buildTranslationRequest(message.getText(), profile, SpecialLangConfig.bot);
 
         try {
-            final String translation = translationService.translate(request).text;
-            final String msg = "Translated " + request.getLangs() + "\n" + translation;
-            System.out.println("Sent translation " + request.getLangs() + ": '" + translation + "'");
+            final TranslationData translation = translationService.translate(request);
+            final String msg = "Translated " + translation.getLangs() + "\n" + translation.text;
+            System.out.println("Sent translation " + translation.getLangs() + ": '" + translation.text + "'");
             sendMessage(message, msg);
         } catch (TranslationException e) {
             sendMessage(message, "There was an error with Yandex API: " + e.getMessage());
