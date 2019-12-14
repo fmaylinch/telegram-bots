@@ -4,7 +4,7 @@ import com.codethen.telegram.lanxatbot.exception.*;
 import com.codethen.telegram.lanxatbot.profile.LangConfig;
 import com.codethen.telegram.lanxatbot.profile.UserProfile;
 import com.codethen.telegram.lanxatbot.profile.UserProfileRepository;
-import com.codethen.yandex.YandexService;
+import com.codethen.yandex.YandexApi;
 import com.codethen.yandex.model.YandexResponse;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.AnswerInlineQuery;
@@ -78,11 +78,11 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
      * TODO: Simplify behind an interface that this bot defines,
      *       like we do with {@link UserProfileRepository}
      */
-    private final YandexService yandex;
+    private final YandexApi yandex;
 
     private final UserProfileRepository userProfileRepo;
 
-    public LanXatTelegramBot(String botName, String apiToken, YandexService yandex, UserProfileRepository userProfileRepo) {
+    public LanXatTelegramBot(String botName, String apiToken, YandexApi yandex, UserProfileRepository userProfileRepo) {
         this.botName = botName;
         this.apiToken = apiToken;
         this.yandex = yandex;
@@ -564,7 +564,7 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
         return apiToken;
     }
 
-    /** TODO: This could be part of {@link YandexService} */
+    /** TODO: This could be part of {@link YandexApi} */
     public static class TranslationRequest {
 
         public String text;

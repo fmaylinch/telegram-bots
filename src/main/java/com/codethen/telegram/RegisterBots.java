@@ -5,7 +5,7 @@ import com.codethen.profile.MongoUserProfileRepository;
 import com.codethen.telegram.lanxatbot.LanXatTelegramBot;
 import com.codethen.telegram.lanxatbot.profile.UserProfile;
 import com.codethen.telegram.lanxatbot.profile.UserProfileRepository;
-import com.codethen.yandex.YandexServiceFactory;
+import com.codethen.yandex.YandexApiFactory;
 import com.mongodb.reactivestreams.client.MongoClients;
 import org.telegram.telegrambots.ApiContextInitializer;
 import org.telegram.telegrambots.meta.TelegramBotsApi;
@@ -48,7 +48,7 @@ public class RegisterBots {
                 new LanXatTelegramBot(
                         botName,
                         lanxatApiToken,
-                        YandexServiceFactory.build(),
+                        YandexApiFactory.build(),
                         mongoUserProfileRepository));
 
         System.out.println("Bots registered!");

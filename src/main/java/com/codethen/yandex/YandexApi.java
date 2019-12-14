@@ -5,7 +5,7 @@ import retrofit2.Call;
 import retrofit2.http.GET;
 import retrofit2.http.Query;
 
-public interface YandexService {
+public interface YandexApi {
 
   @GET("tr.json/translate")
   Call<YandexResponse> translate(
