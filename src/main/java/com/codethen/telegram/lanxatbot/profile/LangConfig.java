@@ -16,19 +16,15 @@ public class LangConfig {
         return from;
     }
 
-    public void setFrom(String from) {
-        this.from = from;
-    }
-
     public String getTo() {
         return to;
     }
 
-    public void setTo(String to) {
-        this.to = to;
-    }
-
     public String shortDescription() {
         return from + ARROW + to;
+    }
+
+    public LangConfig reverse() {
+        return new LangConfig(this.to, this.from);
     }
 }

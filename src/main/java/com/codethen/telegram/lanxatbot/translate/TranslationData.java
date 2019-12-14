@@ -2,7 +2,7 @@ package com.codethen.telegram.lanxatbot.translate;
 
 import com.codethen.telegram.lanxatbot.profile.LangConfig;
 
-public class TranslationRequest {
+public class TranslationData {
 
     public String text;
     public LangConfig langConfig;

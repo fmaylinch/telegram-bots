@@ -2,8 +2,8 @@ package com.codethen.yandex;
 
 import com.codethen.telegram.lanxatbot.translate.TranslationException;
 import com.codethen.telegram.lanxatbot.translate.TranslationService;
-import com.codethen.telegram.lanxatbot.translate.TranslationRequest;
-import com.codethen.yandex.model.YandexResponse;
+import com.codethen.telegram.lanxatbot.translate.TranslationData;
+import com.codethen.yandex.model.TranslateResponse;
 import retrofit2.Call;
 import retrofit2.Response;
 
@@ -18,14 +18,14 @@ public class YandexService implements TranslationService {
     }
 
     @Override
-    public String translate(TranslationRequest request) throws TranslationException {
+    public TranslationData translate(TranslationData request) throws TranslationException {
 
         System.out.println("Translating " + request.getLangs() + " : '" + request.text + "'");
 
         final String langs = request.langConfig.getFrom() + "-" + request.langConfig.getTo(); // Format required by Yandex
-        final Call<YandexResponse> call = yandexApi.translate(request.apiKey, request.text, langs);
+        final Call<TranslateResponse> call = yandexApi.translate(request.apiKey, request.text, langs);
 
-        final Response<YandexResponse> response;
+        final Response<TranslateResponse> response;
         try {
             response = call.execute();
         } catch (IOException e) {
@@ -36,7 +36,11 @@ public class YandexService implements TranslationService {
             throw new TranslationException("Unexpected bad response from Yandex API");
         }
 
-        return response.body().text.get(0);
+        final TranslationData result = new TranslationData();
+        result.text = response.body().text.get(0);
+        result.langConfig = request.langConfig;
+        result.apiKey = request.apiKey;
+        return result;
     }
 
 }

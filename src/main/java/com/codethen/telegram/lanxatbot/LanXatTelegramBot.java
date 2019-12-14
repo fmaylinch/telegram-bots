@@ -9,7 +9,7 @@ import com.codethen.telegram.lanxatbot.profile.UserProfile;
 import com.codethen.telegram.lanxatbot.profile.UserProfileRepository;
 import com.codethen.telegram.lanxatbot.translate.TranslationService;
 import com.codethen.telegram.lanxatbot.translate.TranslationException;
-import com.codethen.telegram.lanxatbot.translate.TranslationRequest;
+import com.codethen.telegram.lanxatbot.translate.TranslationData;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.AnswerInlineQuery;
 import org.telegram.telegrambots.meta.api.methods.ParseMode;
@@ -134,7 +134,7 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
 
         final UserProfile profile = getProfile(inlineQuery.getFrom());
 
-        final TranslationRequest request = buildTranslationRequest(query, profile, SpecialLangConfig.inline);
+        final TranslationData request = buildTranslationRequest(query, profile, SpecialLangConfig.inline);
 
         if (!sentenceIsFinished(query)) {
             displayInlineHelpButton(inlineQuery, "Translating " + request.langConfig.shortDescription() + ". Click to know more.");
@@ -143,15 +143,15 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
 
         if (request.text == null || request.text.length() == 1) return; // No text or just punctuation
 
-        final String translation = translationService.translate(request);
+        final String translation = translationService.translate(request).text;
         System.out.println("Translation: '" + translation + "'");
 
-        final TranslationRequest revReq = new TranslationRequest();
+        final TranslationData revReq = new TranslationData();
         revReq.text = translation;
-        revReq.langConfig = new LangConfig(request.langConfig.getTo(), request.langConfig.getFrom());
+        revReq.langConfig = request.langConfig.reverse();
         revReq.apiKey = request.apiKey;
 
-        final String reverseTranslation = translationService.translate(revReq);
+        final String reverseTranslation = translationService.translate(revReq).text;
         System.out.println("Reverse translation: '" + translation + "'");
 
         final String langTo = request.langConfig.getTo();
@@ -221,11 +221,11 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
      * If the query is a plain text, the {@link LangConfig}) is also taken from
      * {@link UserProfile#getLangConfigs()}, according to the given {@link SpecialLangConfig}.
      *
-     * Note that {@link TranslationRequest#text} might be null if not present in the query.
+     * Note that {@link TranslationData#text} might be null if not present in the query.
      */
-    private TranslationRequest buildTranslationRequest(String query, UserProfile profile, SpecialLangConfig config) {
+    private TranslationData buildTranslationRequest(String query, UserProfile profile, SpecialLangConfig config) {
 
-        final TranslationRequest request = new TranslationRequest();
+        final TranslationData request = new TranslationData();
         request.apiKey = profile.getYandexApiKey();
 
         final Matcher langsAndMessage = langsAndMessagePattern.matcher(query);
@@ -293,10 +293,10 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
 
         final UserProfile profile = getProfile(message.getFrom());
 
-        final TranslationRequest request = buildTranslationRequest(message.getText(), profile, SpecialLangConfig.bot);
+        final TranslationData request = buildTranslationRequest(message.getText(), profile, SpecialLangConfig.bot);
 
         try {
-            final String translation = translationService.translate(request);
+            final String translation = translationService.translate(request).text;
             final String msg = "Translated " + request.getLangs() + "\n" + translation;
             System.out.println("Sent translation " + request.getLangs() + ": '" + translation + "'");
             sendMessage(message, msg);
