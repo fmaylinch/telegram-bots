@@ -48,14 +48,10 @@ public class YandexService implements TranslationService {
     @Override
     public DetectResponse detect(DetectRequest request) throws TranslationException {
 
-        // TODO: I'm not using the hints, because Yandex is actually worse with those
-        //       For example, in the first case correctly guesses "en", but in the second case it guesses "en":
-        //         https://translate.yandex.net/api/v1.5/tr.json/detect?text=hola&hint=&key=API_KEY
-        //         https://translate.yandex.net/api/v1.5/tr.json/detect?text=hola&hint=en,es&key=API_KEY
         final String hint = request.possibleLangs == null ? "" :
                 String.join(",", request.possibleLangs);
 
-        final Call<DetectResponse> call = yandexApi.detect(request.apiKey, request.text, "");
+        final Call<DetectResponse> call = yandexApi.detect(request.apiKey, request.text, hint);
 
         return executeCall(call);
     }
@@ -64,7 +60,13 @@ public class YandexService implements TranslationService {
 
         final DetectRequest result = new DetectRequest();
         result.text = translationData.text;
-        result.possibleLangs = translationData.langConfig.getFrom();
+
+        // TODO: I'm not using the hints, because Yandex is actually worse with those.
+        //       For example, in the first case correctly guesses "en", but in the second case it guesses "en":
+        //         https://translate.yandex.net/api/v1.5/tr.json/detect?text=hola&hint=&key=API_KEY
+        //         https://translate.yandex.net/api/v1.5/tr.json/detect?text=hola&hint=en,es&key=API_KEY
+        //result.possibleLangs = translationData.langConfig.getFrom();
+
         result.apiKey = translationData.apiKey;
         return result;
     }

@@ -139,7 +139,13 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
         final TranslationData request = buildTranslationRequest(query, profile, SpecialLangConfig.inline);
 
         if (!sentenceIsFinished(query)) {
-            displayInlineHelpButton(inlineQuery, "Translating " + request.langConfig.shortDescription() + ". Click to know more.");
+
+            final String langConfigDesc = request.langConfig.isDetect() ?
+                    // TODO: We're not using the language hints, so we don't know the probable source languages
+                    "*" + ARROW + request.langConfig.getTo()
+                    : request.langConfig.shortDescription();
+
+            displayInlineHelpButton(inlineQuery, "Translating " + langConfigDesc + ". Click to know more.");
             return;
         }
 
