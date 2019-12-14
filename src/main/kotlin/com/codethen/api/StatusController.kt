@@ -9,6 +9,6 @@ class StatusController {
     /** Simple message, just to know that the new version is up */
     @GetMapping("status")
     fun status() : String {
-        return "v0.4.3 - Detect language (disable Yandex hints / fix inline hint)"
+        return "v0.4.5 - Detect language (change model)"
     }
 }

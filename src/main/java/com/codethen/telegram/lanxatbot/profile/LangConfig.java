@@ -1,6 +1,6 @@
 package com.codethen.telegram.lanxatbot.profile;
 
-import java.util.Collections;
+import javax.annotation.Nullable;
 import java.util.List;
 
 public class LangConfig {
@@ -8,32 +8,34 @@ public class LangConfig {
     public static final String ARROW = " -> ";
 
     /**
-     * If true, language will be detected, using {@link #getFrom()} languages as hint
-     * (note that you may still write in another language not included in {@link #getFrom()}).
-     * If false, first language of {@link #getFrom()} will be used.
+     * If not null, language will be detected, using these languages as hint (might be an empty list).
+     * Nte that you may still write in another language not included in {@link #getHints()}.
+     * If null, {@link #getFrom()} will be used, without detection.
      */
-    private boolean detect;
-    private List<String> from;
+    @Nullable
+    private List<String> hints;
+    private String from;
     private String to;
 
-    /** @deprecated Necessary by Spring data */
+    /** @deprecated TODO: Necessary by Spring data? */
     public LangConfig() {}
 
-    public LangConfig(List<String> from, String to) {
-        this(false, from, to);
-    }
-
-    public LangConfig(boolean detect, List<String> from, String to) {
-        this.detect = detect;
+    public LangConfig(List<String> hints, String from, String to) {
+        this.hints = hints;
         this.from = from;
         this.to = to;
     }
 
-    public boolean isDetect() {
-        return detect;
+    public boolean shouldDetectLang() {
+        return hints != null;
     }
 
-    public List<String> getFrom() {
+    @Nullable
+    public List<String> getHints() {
+        return hints;
+    }
+
+    public String getFrom() {
         return from;
     }
 
@@ -43,14 +45,14 @@ public class LangConfig {
 
     public String shortDescription() {
 
-        if (isDetect()) {
-            return "(" + String.join(",", from) + ")" + ARROW + to;
+        if (shouldDetectLang()) {
+            return "(" + (hints.isEmpty() ? "*" : String.join(",", hints)) + ")" + ARROW + to;
         } else {
-            return from.get(0) + ARROW + to;
+            return from + ARROW + to;
         }
     }
 
     public LangConfig reverse() {
-        return new LangConfig(Collections.singletonList(to), this.from.get(0));
+        return new LangConfig(null, to, this.from);
     }
 }
