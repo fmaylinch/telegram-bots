@@ -26,6 +26,8 @@ import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import javax.annotation.Nullable;
 import java.util.Arrays;
+import java.util.Collections;
+
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -143,28 +145,29 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
 
         if (request.text == null || request.text.length() == 1) return; // No text or just punctuation
 
-        final String translation = translationService.translate(request).text;
-        System.out.println("Translation: '" + translation + "'");
+        final TranslationData translation = translationService.translate(request);
+        System.out.println("Translation: '" + translation.text + "'");
 
         final TranslationData revReq = new TranslationData();
-        revReq.text = translation;
-        revReq.langConfig = request.langConfig.reverse();
+        revReq.text = translation.text;
+        revReq.langConfig = translation.langConfig.reverse();
         revReq.apiKey = request.apiKey;
 
-        final String reverseTranslation = translationService.translate(revReq).text;
-        System.out.println("Reverse translation: '" + translation + "'");
+        TranslationData revTranslation = translationService.translate(revReq);
+        System.out.println("Reverse translation: '" + revTranslation.text + "'");
 
-        final String langTo = request.langConfig.getTo();
-        final String langFrom = request.langConfig.getFrom();
+        final String langTo = translation.langConfig.getTo();
+        final String langFrom = translation.langConfig.getFrom().get(0);
+        final String langToRev = revTranslation.langConfig.getTo();
 
         execute(new AnswerInlineQuery()
                 .setInlineQueryId(inlineQuery.getId())
                 .setCacheTime(0) // TODO: Maybe adjust later as needed
                 .setResults(
-                        buildResult(getThumbnail(langTo), langTo, translation, "1"),
-                        buildResult(getThumbnail(langFrom), langFrom, request.text, "2"),
-                        buildResult(getThumbnail(langFrom), request.getLangs() + ARROW + langFrom, reverseTranslation, "3"),
-                        buildResult(null, request.getLangs(), "- " + translation + "\n" + "- " + request.text, "4")
+                        buildResult(getThumbnail(langTo), langTo, translation.text, "1"),
+                        buildResult(getThumbnail(langFrom), langFrom + " (original)", request.text, "2"),
+                        buildResult(getThumbnail(revTranslation.langConfig.getTo()), translation.getLangs() + ARROW + langToRev + " (reverse translation)", revTranslation.text, "3"),
+                        buildResult(null, translation.langConfig.getFrom().get(0) + " / " + translation.langConfig.getTo(), "- " + request.text + "\n" + "- " + translation.text, "4")
                 ));
     }
 
@@ -223,14 +226,14 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
      *
      * Note that {@link TranslationData#text} might be null if not present in the query.
      */
-    private TranslationData buildTranslationRequest(String query, UserProfile profile, SpecialLangConfig config) {
+    private TranslationData buildTranslationRequest(String query, UserProfile profile, SpecialLangConfig defaultConfig) {
 
         final TranslationData request = new TranslationData();
         request.apiKey = profile.getYandexApiKey();
 
         final Matcher langsAndMessage = langsAndMessagePattern.matcher(query);
         if (langsAndMessage.matches()) {
-            request.langConfig = new LangConfig(langsAndMessage.group(1), langsAndMessage.group(2));
+            request.langConfig = new LangConfig(Collections.singletonList(langsAndMessage.group(1)), langsAndMessage.group(2));
             request.text = langsAndMessage.group(3);
         } else {
             final Matcher langConfigAndMessage = langConfigAndMessagePattern.matcher(query);
@@ -242,7 +245,7 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
                 }
                 request.text = langConfigAndMessage.group(2);
             } else {
-                request.langConfig = profile.getLangConfigs().get(config.name());
+                request.langConfig = profile.getLangConfigs().get(defaultConfig.name());
                 request.text = query;
             }
         }
@@ -277,11 +280,12 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
     private void processMessage(Message message) throws TelegramApiException {
 
         // Maybe it's a lang config setup?
+        // TODO: Allow pattern with detect, .e.g ".(ru,en,es).en" would have detect enabled
         final Matcher matcher = langConfigSetupPattern.matcher(message.getText());
         if (matcher.matches()) {
             final String langConfigName = matcher.group(1);
             final LangConfig langConfig = matcher.group(2) != null ?
-                    new LangConfig(matcher.group(2), matcher.group(3)) : null;
+                    new LangConfig(Collections.singletonList(matcher.group(2)), matcher.group(3)) : null;
             setupLangConfig(langConfigName, langConfig, message);
             return;
         }
@@ -415,7 +419,10 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
 
     /** Returns the {@link LangConfig} with the {@link #langsPatternStr} pattern. */
     private String toLangsPattern(LangConfig langConfig) {
-        return "." + langConfig.getFrom() + "." + langConfig.getTo();
+        /** TODO: This is done also in {@link LangConfig#shortDescription()} */
+        final String fromAsPattern = langConfig.isDetect() ?
+                "(" + String.join(",", langConfig.getFrom()) + ")" : langConfig.getFrom().get(0);
+        return "." + fromAsPattern + "." + langConfig.getTo();
     }
 
     /**

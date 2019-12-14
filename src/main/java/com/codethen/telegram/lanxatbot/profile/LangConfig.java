@@ -1,18 +1,39 @@
 package com.codethen.telegram.lanxatbot.profile;
 
+import java.util.Collections;
+import java.util.List;
+
 public class LangConfig {
 
     public static final String ARROW = " -> ";
 
-    private String from;
+    /**
+     * If true, language will be detected, using {@link #getFrom()} languages as hint
+     * (note that you may still write in another language not included in {@link #getFrom()}).
+     * If false, first language of {@link #getFrom()} will be used.
+     */
+    private boolean detect;
+    private List<String> from;
     private String to;
 
-    public LangConfig(String from, String to) {
+    /** @deprecated Necessary by Spring data */
+    public LangConfig() {}
+
+    public LangConfig(List<String> from, String to) {
+        this(false, from, to);
+    }
+
+    public LangConfig(boolean detect, List<String> from, String to) {
+        this.detect = detect;
         this.from = from;
         this.to = to;
     }
 
-    public String getFrom() {
+    public boolean isDetect() {
+        return detect;
+    }
+
+    public List<String> getFrom() {
         return from;
     }
 
@@ -21,10 +42,15 @@ public class LangConfig {
     }
 
     public String shortDescription() {
-        return from + ARROW + to;
+
+        if (isDetect()) {
+            return "(" + String.join(",", from) + ")" + ARROW + to;
+        } else {
+            return from.get(0) + ARROW + to;
+        }
     }
 
     public LangConfig reverse() {
-        return new LangConfig(this.to, this.from);
+        return new LangConfig(Collections.singletonList(to), this.from.get(0));
     }
 }
