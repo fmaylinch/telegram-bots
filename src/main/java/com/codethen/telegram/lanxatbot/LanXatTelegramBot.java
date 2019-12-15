@@ -10,7 +10,6 @@ import com.codethen.telegram.lanxatbot.profile.UserProfileRepository;
 import com.codethen.telegram.lanxatbot.translate.TranslationData;
 import com.codethen.telegram.lanxatbot.translate.TranslationException;
 import com.codethen.telegram.lanxatbot.translate.TranslationService;
-import com.codethen.yandex.YandexService;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.AnswerInlineQuery;
 import org.telegram.telegrambots.meta.api.methods.ParseMode;
@@ -27,6 +26,8 @@ import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import javax.annotation.Nullable;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -194,28 +195,34 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
         return lastChar != ',' && !Character.isLetterOrDigit(lastChar);
     }
 
-    /** In ".en.ru" matcher would capture groups: "en", "ru". */
-    private static final String langsPatternStr = "\\.([a-z][a-z])\\.([a-z][a-z])";
+    /**
+     * In ".en.ru" matcher would capture groups: null, "en", "ru".
+     * In "(es,en,ru) .en.ru" matcher would capture groups: "es,en,fr", "en", "ru".
+     * In "() .en.ru" matcher would capture groups: "", "en", "ru".
+     */
+    private static final String hintsAndLangsPatternStr = "(?:\\(([a-z,]*)\\)\\s+)?\\.([a-z][a-z])\\.([a-z][a-z])";
     /** In ".name" matcher would capture group: "name". */
     private static final String langConfigPatternStr = "\\.(\\w+)";
     /** In "   message" matcher would capture group: "message". */
     private static final String messagePatternStr = "\\s+(.+)";
     /** In ".en.ru message" matcher would capture groups: "en", "ru", "message". */
-    private static final Pattern langsAndMessagePattern = Pattern.compile(langsPatternStr + messagePatternStr);
+    private static final Pattern hintsAndLangsAndMessagePattern = Pattern.compile(hintsAndLangsPatternStr + messagePatternStr);
     /** In ".name message" matcher would capture groups: "name", "message". */
     private static final Pattern langConfigAndMessagePattern = Pattern.compile(langConfigPatternStr + messagePatternStr);
     /**
-     * In ".name = .en.ru" matcher would capture groups: "name", "en", "ru".
+     * In ".name = .en.ru" matcher would capture groups: "name", null, "en", "ru".
+     * In ".name = (es,en) .en.ru" matcher would capture groups: "name", "es,en", "en", "ru".
+     * In ".name = () .en.ru" matcher would capture groups: "name", "", "en", "ru".
      * In ".name =" matcher would capture groups: "name", null, null.
      */
-    private static final Pattern langConfigSetupPattern = Pattern.compile(langConfigPatternStr + "\\s*=\\s*" + "(?:" + langsPatternStr + ")?");
+    private static final Pattern hintsAndLangConfigSetupPattern = Pattern.compile(langConfigPatternStr + "\\s*=\\s*" + "(?:" + hintsAndLangsPatternStr + ")?");
 
     private String getUserInfo(User user) {
         return user.getUserName() + " (" + user.getId() + ")";
     }
 
     /**
-     * Parses query, witch may be {@link #langsAndMessagePattern}, {@link #langConfigAndMessagePattern},
+     * Parses query, witch may be {@link #hintsAndLangsAndMessagePattern}, {@link #langConfigAndMessagePattern},
      * or otherwise it's just a plain text with no pattern.
      *
      * If a pattern matches, we decide the {@link LangConfig} from there
@@ -231,10 +238,10 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
         final TranslationData request = new TranslationData();
         request.apiKey = profile.getYandexApiKey();
 
-        final Matcher langsAndMessage = langsAndMessagePattern.matcher(query);
-        if (langsAndMessage.matches()) {
-            request.langConfig = new LangConfig(null, langsAndMessage.group(1), langsAndMessage.group(2));
-            request.text = langsAndMessage.group(3);
+        final Matcher hintsAndLangsAndMessage = hintsAndLangsAndMessagePattern.matcher(query);
+        if (hintsAndLangsAndMessage.matches()) {
+            request.langConfig = buildLangConfigFromMatcher(hintsAndLangsAndMessage, 1);
+            request.text = hintsAndLangsAndMessage.group(4);
         } else {
             final Matcher langConfigAndMessage = langConfigAndMessagePattern.matcher(query);
             if (langConfigAndMessage.matches()) {
@@ -279,20 +286,32 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
 
     private void processMessage(Message message) throws TelegramApiException {
 
-        /**
-         * TODO: We may also accept a pattern to define hints, but for now we don't want them because they work badly.
-         * See {@link YandexService#buildDetectRequest(TranslationData)}
-         */
-        final Matcher matcher = langConfigSetupPattern.matcher(message.getText());
+        final Matcher matcher = hintsAndLangConfigSetupPattern.matcher(message.getText());
         if (matcher.matches()) {
             final String langConfigName = matcher.group(1);
-            final LangConfig langConfig = matcher.group(2) != null ?
-                    new LangConfig(null, matcher.group(2), matcher.group(3)) : null;
+            final LangConfig langConfig = buildLangConfigFromMatcher(matcher, 2);
             setupLangConfig(langConfigName, langConfig, message);
             return;
         }
 
         processMessageAsTranslation(message);
+    }
+
+    /** Builds a {@link LangConfig} from the data taken from the {@link Matcher} */
+    private LangConfig buildLangConfigFromMatcher(Matcher matcher, int firstGroupIndex) {
+
+        final String hintsStr = matcher.group(firstGroupIndex);
+        final String langFrom = matcher.group(firstGroupIndex + 1);
+        final String langTo = matcher.group(firstGroupIndex + 2);
+
+        if (langFrom == null) return null;
+
+        // If hintsStr part is not present there is no auto-detection
+        final List<String> hints = hintsStr == null ? null :
+                (hintsStr.isEmpty() ? Collections.emptyList() :
+                        Arrays.asList(hintsStr.split(",")));
+
+        return new LangConfig(hints, langFrom, langTo);
     }
 
     private void processMessageAsTranslation(Message message) throws TelegramApiException {
@@ -402,6 +421,12 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
                 "To remove a configuration, send a message like:\n" +
                 "`.e =`" +
                 "\n\n" +
+                "Advanced: when creating a language configuration, you can also specify that you want " +
+                "language auto-detection, typing parenthesis with optional hints inside " +
+                "(hints are not recommended). Examples:\n" +
+                "`.e = () .es.en`\n" +
+                "`.e = (es,fr,it) .es.en`" +
+                "\n\n" +
                 "Current language profiles:\n" + langConfigsMarkdown +
                 "";
 
@@ -421,12 +446,13 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
         return "." + langConfigName;
     }
 
-    /** Returns the {@link LangConfig} with the {@link #langsPatternStr} pattern. */
+    /** Returns the {@link LangConfig} looking like {@link #hintsAndLangsPatternStr}. */
     private String toLangsPattern(LangConfig langConfig) {
-        /** TODO: This is done also in {@link LangConfig#shortDescription()} */
-        final String fromAsPattern = langConfig.shouldDetectLang() ?
-                "(" + (langConfig.getHints().isEmpty() ? "*" : String.join(",", langConfig.getHints())) + ")" : langConfig.getFrom();
-        return "." + fromAsPattern + "." + langConfig.getTo();
+
+        final String detect = langConfig.getHints() != null ?
+                "(" + String.join(",", langConfig.getHints()) + ") " : "";
+
+        return detect + "." + langConfig.getFrom() + "." + langConfig.getTo();
     }
 
     /**

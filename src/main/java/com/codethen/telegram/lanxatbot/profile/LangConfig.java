@@ -9,7 +9,8 @@ public class LangConfig {
 
     /**
      * If not null, language will be detected, using these languages as hint (might be an empty list).
-     * Nte that you may still write in another language not included in {@link #getHints()}.
+     * Hints are not recommended for Yandex, but you may still specify an empty list for auto-detection.
+     * Note that you may still write in another language not included in {@link #getHints()}.
      * If null, {@link #getFrom()} will be used, without detection.
      */
     @Nullable
@@ -20,7 +21,7 @@ public class LangConfig {
     /** @deprecated TODO: Necessary by Spring data? */
     public LangConfig() {}
 
-    public LangConfig(List<String> hints, String from, String to) {
+    public LangConfig(@Nullable List<String> hints, String from, String to) {
         this.hints = hints;
         this.from = from;
         this.to = to;
