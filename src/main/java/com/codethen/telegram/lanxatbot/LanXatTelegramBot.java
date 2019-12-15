@@ -27,7 +27,6 @@ import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import javax.annotation.Nullable;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -377,34 +376,36 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
             final UserProfile profile = getProfile(message.getFrom());
 
             final String langConfigsMarkdown = profile.getLangConfigs().entrySet().stream()
-                    .map(e -> "- `" + langConfigNameToPattern(e.getKey()) + " = " + toLangsPattern(e.getValue()) + "`\n")
+                    .map(e -> "`" + langConfigNameToPattern(e.getKey()) + " = " + toLangsPattern(e.getValue()) + "`\n")
                     .collect(Collectors.joining());
 
-            sendMessage(message,
-                    "**Language configurations**" +
-                            "\n\n" +
-                            "You can write something like `.en.es Translate this!` to translate from English to Spanish." +
-                            "\n\n" +
-                            "But you can setup shortcuts to select the languages to translate more easily." +
-                            " For example, you may decide that `.e` is equivalent to `.es.en` and then just write `.e Translate this!`." +
-                            "\n\n" +
-                            "There are two special language configurations: `.bot` and `.inline`. By default," +
-                            " I will use the `.bot` configuration to translate messages you write/forward to me, and" +
-                            " I will use the `.inline` configuration to translate messages you send inline to other users." +
-                            "\n\n" +
-                            "You can modify or create language configurations by sending me a message like:" +
-                            "\n\n" +
-                            "`.e = .es.en`" +
-                            "\n\n" +
-                            " That would configure `.e` to be equivalent to `.es.en`." +
-                            "\n\n" +
-                            " To remove a configuration, write a message like:" +
-                            "\n\n" +
-                            "`.e =`" +
-                            "\n\n" +
-                            "Note that there is no value after the equal sign." +
-                            "\n\n" +
-                            "Current language profiles:\n" + langConfigsMarkdown);
+            final String markdown =
+                "**Language configurations**" +
+                "\n\n" +
+                "To translate from English to Spanish you can, for example, write:\n" +
+                "`.en.es Translate this!`" +
+                "\n\n" +
+                "You can also setup configurations to select the languages to translate. " +
+                "For example, you can set `.e` as an alias for `.es.en` and then just write:\n" +
+                "`.e Translate this!`." +
+                "\n\n" +
+                "There are two special language configurations: " +
+                "`." + SpecialLangConfig.bot + "` and `." + SpecialLangConfig.inline + "`. " + "By default, " +
+                "the `." + SpecialLangConfig.bot + "` configuration will be used to translate messages " +
+                "you write/forward here to the bot, and " +
+                "the `." + SpecialLangConfig.inline + "` configuration will be used to translate messages " +
+                "you send inline to other users." +
+                "\n\n" +
+                "To modify or create language configurations send here a message like:\n" +
+                "`.e = .es.en`" +
+                "\n\n" +
+                "To remove a configuration, send a message like:\n" +
+                "`.e =`" +
+                "\n\n" +
+                "Current language profiles:\n" + langConfigsMarkdown +
+                "";
+
+            sendMessage(message, markdown);
 
         } else {
 
@@ -438,26 +439,19 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
 
         if (commandParts.length == 1) { // No parameters
 
-            final UserProfile profile = getProfile(message.getFrom());
-
-            final LangConfig langConfigBot = profile.getLangConfigs().get(SpecialLangConfig.bot.name());
-            final LangConfig langConfigInline = profile.getLangConfigs().get(SpecialLangConfig.inline.name());
-
             final String markdown =
-                    "**How this bot works**" +
-                    "\n\n" +
-                    "You can write (or forward) messages to me and I'll translate them" +
-                    " from language `" + langConfigBot.getFrom() + "` to language `" + langConfigBot.getTo() + "`." +
-                    " You can change that setting, see " + commandText.get(Command.langconfig) + "."+
-                    "\n\n" +
-                    "But the cool thing is using me in inline mode when talking to other people." +
-                    " In chat, type `@" + getBotUsername() + "` and then the message to translate." +
-                    " Try the inline mode by clicking the button below." +
-                    "\n" +
-                    "\nCurrent translation here: " + langConfigBot.shortDescription() +
-                    "\nCurrent translation inline: " + langConfigInline.shortDescription();
-
-            //sendMessage(message, markdown);
+                            "**How this bot works**" +
+                            "\n\n" +
+                            "You can write (or forward) messages to this bot and it will translate them, " +
+                            "according to your `." + SpecialLangConfig.bot + "` profile " +
+                            "in " + commandText.get(Command.langconfig) + "." +
+                            "\n\n" +
+                            "This bot can also be used inline, i.e. you can use it while " +
+                            "chatting with other people. In a chat, type `@" + getBotUsername() + "` and then the " +
+                            "message to translate. It will be translated according to your `." + SpecialLangConfig.inline + "` profile " +
+                            "\n\n" +
+                            "Try the inline mode by clicking the button below!" +
+                            "";
 
             execute(new SendMessage()
                     .setChatId(message.getChatId())
@@ -467,7 +461,7 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
                             .setKeyboard(singletonList(singletonList(
                                     new InlineKeyboardButton()
                                             .setText("Try the inline mode!")
-                                            .setSwitchInlineQuery(".en.ru Have you tried @" + getBotUsername() + "?")
+                                            .setSwitchInlineQuery("Have you tried @" + getBotUsername() + "?")
                             )))));
 
         } else  {
@@ -480,19 +474,21 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
 
                 final LangConfig langConfigInline = profile.getLangConfigs().get(SpecialLangConfig.inline.name());
 
-                sendMessage(message,
+                final String markdown =
                         "**Inline mode**" +
-                                "\n\n" +
-                                "While talking to other people, type `@" + getBotUsername() + "` followed by your message," +
-                                " and finish it with punctuation mark or emoji to see the results." +
-                                "\n\n" +
-                                "The results let you to send the original message, the translated message or both." +
-                                "\n\n" +
-                                "The default inline translation is now " + langConfigInline.shortDescription() +
-                                " but you can change that setting (see " + commandText.get(Command.langconfig) + ")." +
-                                "\n\n" +
-                                "You also choose the languages for a single message (without affecting the default setting)," +
-                                " by typing something like `@" + getBotUsername() + " .en.es Translate this to Spanish.`");
+                        "\n\n" +
+                        "While talking to other people, type `@" + getBotUsername() + "` followed by your message, " +
+                        "and finish it with punctuation mark or emoji to see the results." +
+                        "\n\n" +
+                        "The results let you to send the original message, the translated message or both." +
+                        "\n\n" +
+                        "See the `." + SpecialLangConfig.inline + "` configuration in " + commandText.get(Command.langconfig) + "." +
+                        "\n\n" +
+                        "You also choose the languages for a single message (without affecting the default setting), " +
+                        "by typing, for example, `@" + getBotUsername() + " .en.es Translate this to Spanish.`" +
+                        "";
+
+                sendMessage(message, markdown);
 
             } else {
 
