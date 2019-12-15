@@ -300,9 +300,10 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
     /** Builds a {@link LangConfig} from the data taken from the {@link Matcher} */
     private LangConfig buildLangConfigFromMatcher(Matcher matcher, int firstGroupIndex) {
 
-        final String hintsStr = matcher.group(firstGroupIndex);
-        final String langFrom = matcher.group(firstGroupIndex + 1);
-        final String langTo = matcher.group(firstGroupIndex + 2);
+        // TODO: This is Java 11, I'm trying it :)
+        final var hintsStr = matcher.group(firstGroupIndex);
+        final var langFrom = matcher.group(firstGroupIndex + 1);
+        final var langTo = matcher.group(firstGroupIndex + 2);
 
         if (langFrom == null) return null;
 
