@@ -1,9 +1,6 @@
 package com.codethen.telegram.lanxatbot;
 
-import com.codethen.telegram.lanxatbot.exception.InlineQueryException;
-import com.codethen.telegram.lanxatbot.exception.LanXatException;
-import com.codethen.telegram.lanxatbot.exception.LangConfigNotExistsException;
-import com.codethen.telegram.lanxatbot.exception.ProfileNotExistsException;
+import com.codethen.telegram.lanxatbot.exception.*;
 import com.codethen.telegram.lanxatbot.profile.LangConfig;
 import com.codethen.telegram.lanxatbot.profile.UserProfile;
 import com.codethen.telegram.lanxatbot.profile.UserProfileRepository;
@@ -25,10 +22,7 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKe
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import javax.annotation.Nullable;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -105,7 +99,16 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
             } catch (ProfileNotExistsException e) {
 
                 System.out.println("User does not have a profile: " + e.getUserId());
+                final User user = getUserFrom(update);
+                if (user != null) {
+                    userProfileRepo.saveOrUpdate(buildUserProfileFrom(user));
+                }
                 sendError(update, "You don't have a profile yet. This bot is in development. Ask the bot creator. Your userId is " + e.getUserId() +".");
+
+            } catch (ProfileNotConfiguredException e) {
+
+                System.out.println("User does not have a configured profile: " + e.getUserProfile().getId());
+                sendError(update, "Your profile is not set up yet. Your userId is " + e.getUserProfile().getId() +".");
 
             } catch (LanXatException e) {
 
@@ -115,6 +118,27 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    private UserProfile buildUserProfileFrom(User user) {
+
+        final UserProfile userProfile = new UserProfile();
+        userProfile.setId(user.getId());
+        userProfile.setCreated(new Date());
+        userProfile.setFirstName(user.getFirstName());
+        userProfile.setLastName(user.getLastName());
+        userProfile.setUserName(user.getUserName());
+        userProfile.setBot(user.getBot());
+        userProfile.setLanguageCode(user.getLanguageCode());
+        return userProfile;
+    }
+
+    @Nullable
+    private User getUserFrom(Update update) {
+        if (update.hasMessage()) return update.getMessage().getFrom();
+        if (update.hasInlineQuery()) return update.getInlineQuery().getFrom();
+        // TODO: There are other objects that contain a User
+        return null;
     }
 
     private void sendError(Update update, String markdown) throws TelegramApiException {

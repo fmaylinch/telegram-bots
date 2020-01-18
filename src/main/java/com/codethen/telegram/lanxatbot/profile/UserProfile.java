@@ -21,6 +21,11 @@ public class UserProfile {
     private String yandexApiKey;
     /** Language configurations that the user can use */
     private Map<String, LangConfig> langConfigs;
+    private String firstName;
+    private String lastName;
+    private String userName;
+    private Boolean bot;
+    private String languageCode;
 
 
     public Integer getId() {
@@ -53,6 +58,46 @@ public class UserProfile {
 
     public void setYandexApiKey(String yandexApiKey) {
         this.yandexApiKey = yandexApiKey;
+    }
+
+    public void setFirstName(String firstName) {
+        this.firstName = firstName;
+    }
+
+    public String getFirstName() {
+        return firstName;
+    }
+
+    public void setLastName(String lastName) {
+        this.lastName = lastName;
+    }
+
+    public String getLastName() {
+        return lastName;
+    }
+
+    public void setUserName(String userName) {
+        this.userName = userName;
+    }
+
+    public String getUserName() {
+        return userName;
+    }
+
+    public void setBot(Boolean bot) {
+        this.bot = bot;
+    }
+
+    public Boolean getBot() {
+        return bot;
+    }
+
+    public void setLanguageCode(String languageCode) {
+        this.languageCode = languageCode;
+    }
+
+    public String getLanguageCode() {
+        return languageCode;
     }
 
     @Override
