@@ -7,6 +7,9 @@ import com.codethen.telegram.lanxatbot.profile.UserProfileRepository;
 import com.codethen.telegram.lanxatbot.translate.TranslationData;
 import com.codethen.telegram.lanxatbot.translate.TranslationException;
 import com.codethen.telegram.lanxatbot.translate.TranslationService;
+import io.reactivex.rxjava3.core.Observable;
+import io.reactivex.rxjava3.core.ObservableEmitter;
+import io.reactivex.rxjava3.disposables.Disposable;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.AnswerInlineQuery;
 import org.telegram.telegrambots.meta.api.methods.ParseMode;
@@ -23,6 +26,7 @@ import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import javax.annotation.Nullable;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -35,14 +39,17 @@ import static java.util.Collections.singletonList;
  * You can send messages to the bot, but the main feature is to use inline queries.
  * See: https://core.telegram.org/bots/inline
  *
- * In an inline query you type `@lanxat_bot Hello, how are you?`
+ * In an inline query you type `@lanxbot Hello, how are you?`
  * and it will suggest the translation depending on the translation configuration you have currently.
  * You may also explicitly indicate the languages to use for translation in a single message
  * (overriding the default configuration).
  *
- * Note that the bot is currently named lanxat_bot, but this may change. See {@link #getBotUsername()}.
+ * Note that the bot is currently named lanxbot, but this may change. See {@link #getBotUsername()}.
  */
 public class LanXatTelegramBot extends TelegramLongPollingBot {
+
+    private final HashMap<Integer, ObservableEmitter<TranslationRequestData>> translationEmitters;
+    private final HashMap<Integer, Disposable> translationSubscriptions;
 
     private enum Command {
 
@@ -80,6 +87,9 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
         this.apiToken = apiToken;
         this.translationService = translationService;
         this.userProfileRepo = userProfileRepo;
+
+        this.translationEmitters = new HashMap<>();
+        this.translationSubscriptions = new HashMap<>();
     }
 
     public void onUpdateReceived(Update update) {
@@ -162,37 +172,99 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
 
         final TranslationData request = buildTranslationRequest(query, profile, SpecialLangConfig.inline);
 
+/*
         if (!sentenceIsFinished(query)) {
             final String langConfigDesc = request.langConfig.shortDescription();
             displayInlineHelpButton(inlineQuery, "Translating " + langConfigDesc + ". Click to know more.");
             return;
         }
+*/
 
-        if (request.text == null || request.text.length() == 1) return; // No text or just punctuation
+        if (request.text == null || request.text.length() < 2) return; // text too short
 
-        final TranslationData translation = translationService.translate(request);
+        final TranslationRequestData trd = new TranslationRequestData(request, profile, inlineQuery);
+
+        throttleTranslation(trd);
+    }
+
+    /**
+     * Throttles translations using {@link Observable#throttleLast(long, TimeUnit)},
+     * so translations are only sent when the user stops writing for some specified time.
+     */
+    private void throttleTranslation(TranslationRequestData trd) {
+
+        final Integer userId = trd.profile.getId();
+
+        if (!translationEmitters.containsKey(userId)) {
+
+            final Observable<TranslationRequestData> observable = Observable.create(emitter -> {
+                translationEmitters.put(userId, emitter);
+            });
+
+            final Disposable disposable = observable
+                .throttleLast(2, TimeUnit.SECONDS)
+                .subscribe(this::processTranslation, Throwable::printStackTrace);
+
+            translationSubscriptions.put(userId, disposable);
+        }
+
+        System.out.println("Throttling translation: " + trd);
+        translationEmitters.get(userId).onNext(trd);
+    }
+
+    /**
+     * This contains the necessary information to process the translation request.
+     * TODO: Think about a better name
+     */
+    private static class TranslationRequestData {
+
+        public final TranslationData request;
+        public final UserProfile profile;
+        public final InlineQuery inlineQuery;
+
+        public TranslationRequestData(TranslationData request, UserProfile profile, InlineQuery inlineQuery) {
+            this.request = request;
+            this.profile = profile;
+            this.inlineQuery = inlineQuery;
+        }
+
+        @Override
+        public String toString() {
+            return "TranslationRequestData{" +
+                "userId=" + profile.getId() +
+                ", queryId=" + inlineQuery.getId() +
+                ", text=" + request.text +
+                '}';
+        }
+    }
+
+    private void processTranslation(TranslationRequestData trd) throws TelegramApiException {
+
+        System.out.println("Processing translation: " + trd);
+
+        final TranslationData translation = translationService.translate(trd.request);
         System.out.println("Translation: '" + translation.text + "'");
 
         final TranslationData revReq = new TranslationData();
         revReq.text = translation.text;
         revReq.langConfig = translation.langConfig.reverse();
-        revReq.apiKey = request.apiKey;
+        revReq.apiKey = trd.request.apiKey;
 
         TranslationData revTranslation = translationService.translate(revReq);
-        System.out.println("Reverse translation: '" + revTranslation.text + "'");
+        System.out.println("Reversed: '" + revTranslation.text + "'");
 
         final String langTo = translation.langConfig.getTo();
         final String langFrom = translation.langConfig.getFrom();
         final String langToRev = revTranslation.langConfig.getTo();
 
         execute(new AnswerInlineQuery()
-                .setInlineQueryId(inlineQuery.getId())
+                .setInlineQueryId(trd.inlineQuery.getId())
                 .setCacheTime(0) // TODO: Maybe adjust later as needed
                 .setResults(
                         buildResult(getThumbnail(langTo), langTo, translation.text, "1"),
-                        buildResult(getThumbnail(langFrom), langFrom + " (original)", request.text, "2"),
+                        buildResult(getThumbnail(langFrom), langFrom + " (original)", trd.request.text, "2"),
                         buildResult(getThumbnail(revTranslation.langConfig.getTo()), translation.getLangs() + ARROW + langToRev + " (reverse translation)", revTranslation.text, "3"),
-                        buildResult(null, translation.langConfig.getFrom() + " / " + translation.langConfig.getTo(), "- " + request.text + "\n" + "- " + translation.text, "4")
+                        buildResult(null, translation.langConfig.getFrom() + " / " + translation.langConfig.getTo(), "- " + trd.request.text + "\n" + "- " + translation.text, "4")
                 ));
     }
 
@@ -528,8 +600,7 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
                 final String markdown =
                         "**Inline mode**" +
                         "\n\n" +
-                        "While talking to other people, type `@" + getBotUsername() + "` followed by your message, " +
-                        "and finish it with punctuation mark or emoji to see the results." +
+                        "While talking to other people, type `@" + getBotUsername() + "` followed by your message." +
                         "\n\n" +
                         "The results let you to send the original message, the translated message or both." +
                         "\n\n" +

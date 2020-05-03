@@ -9,6 +9,6 @@ class StatusController {
     /** Simple message, just to know that the new version is up */
     @GetMapping("status")
     fun status() : String {
-        return "v0.5.1 - Save UserProfile for new users"
+        return "v0.6.0 - Throttle translations, don't need punctuation at the end"
     }
 }
