@@ -4,6 +4,8 @@ import com.codethen.telegram.lanxatbot.exception.*;
 import com.codethen.telegram.lanxatbot.profile.LangConfig;
 import com.codethen.telegram.lanxatbot.profile.UserProfile;
 import com.codethen.telegram.lanxatbot.profile.UserProfileRepository;
+import com.codethen.telegram.lanxatbot.search.SearchEntry;
+import com.codethen.telegram.lanxatbot.search.SearchRepository;
 import com.codethen.telegram.lanxatbot.translate.TranslationData;
 import com.codethen.telegram.lanxatbot.translate.TranslationException;
 import com.codethen.telegram.lanxatbot.translate.TranslationService;
@@ -81,12 +83,18 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
     private final TranslationService translationService;
 
     private final UserProfileRepository userProfileRepo;
+    private SearchRepository searchRepository;
 
-    public LanXatTelegramBot(String botName, String apiToken, TranslationService translationService, UserProfileRepository userProfileRepo) {
+    public LanXatTelegramBot(String botName,
+                             String apiToken,
+                             TranslationService translationService,
+                             UserProfileRepository userProfileRepo,
+                             SearchRepository searchRepository) {
         this.botName = botName;
         this.apiToken = apiToken;
         this.translationService = translationService;
         this.userProfileRepo = userProfileRepo;
+        this.searchRepository = searchRepository;
 
         this.translationEmitters = new HashMap<>();
         this.translationSubscriptions = new HashMap<>();
@@ -245,6 +253,8 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
         final TranslationData translation = translationService.translate(trd.request);
         System.out.println("Translation: '" + translation.text + "'");
 
+        saveSearch(trd, translation);
+
         final TranslationData revReq = new TranslationData();
         revReq.text = translation.text;
         revReq.langConfig = translation.langConfig.reverse();
@@ -263,9 +273,20 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
                 .setResults(
                         buildResult(getThumbnail(langTo), langTo, translation.text, "1"),
                         buildResult(getThumbnail(langFrom), langFrom + " (original)", trd.request.text, "2"),
-                        buildResult(getThumbnail(revTranslation.langConfig.getTo()), translation.getLangs() + ARROW + langToRev + " (reverse translation)", revTranslation.text, "3"),
+                        buildResult(getThumbnail(revTranslation.langConfig.getTo()), translation.getLangs() + ARROW + langToRev + " (reversed)", revTranslation.text, "3"),
                         buildResult(null, translation.langConfig.getFrom() + " / " + translation.langConfig.getTo(), "- " + trd.request.text + "\n" + "- " + translation.text, "4")
                 ));
+    }
+
+    private void saveSearch(TranslationRequestData trd, TranslationData translation) {
+
+        searchRepository.registerSearch(new SearchEntry(
+            trd.profile.getId(),
+            trd.request.text,
+            translation.text,
+            translation.langConfig.getFrom(),
+            translation.langConfig.getTo()
+        ));
     }
 
     private String getThumbnail(String lang) {
