@@ -180,14 +180,6 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
 
         final TranslationData request = buildTranslationRequest(query, profile, SpecialLangConfig.inline);
 
-/*
-        if (!sentenceIsFinished(query)) {
-            final String langConfigDesc = request.langConfig.shortDescription();
-            displayInlineHelpButton(inlineQuery, "Translating " + langConfigDesc + ". Click to know more.");
-            return;
-        }
-*/
-
         if (request.text == null || request.text.length() < 2) return; // text too short
 
         final TranslationRequestData trd = new TranslationRequestData(request, profile, inlineQuery);
@@ -303,14 +295,6 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
                 .setSwitchPmText(text)
                 .setSwitchPmParameter(HELP_INLINE_START_PARAM)
                 .setResults());
-    }
-
-    private boolean sentenceIsFinished(String text) {
-
-        if (text.length() == 0) return false;
-
-        final char lastChar = text.charAt(text.length() - 1);
-        return lastChar != ',' && !Character.isLetterOrDigit(lastChar);
     }
 
     /**
