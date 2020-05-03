@@ -1,23 +1,31 @@
 package com.codethen.telegram.lanxatbot.search;
 
+import java.util.Date;
+
 public class SearchEntry {
 
     private final Integer userId;
+    private Date date;
     private final String source;
     private final String target;
-    private final String langSource;
-    private final String langTarget;
+    private final String from;
+    private final String to;
 
-    public SearchEntry(Integer userId, String source, String target, String langSource, String langTarget) {
+    public SearchEntry(Integer userId, Date date, String source, String target, String from, String to) {
         this.userId = userId;
+        this.date = date;
         this.source = source;
         this.target = target;
-        this.langSource = langSource;
-        this.langTarget = langTarget;
+        this.from = from;
+        this.to = to;
     }
 
     public Integer getUserId() {
         return userId;
+    }
+
+    public Date getDate() {
+        return date;
     }
 
     public String getSource() {
@@ -28,11 +36,11 @@ public class SearchEntry {
         return target;
     }
 
-    public String getLangSource() {
-        return langSource;
+    public String getFrom() {
+        return from;
     }
 
-    public String getLangTarget() {
-        return langTarget;
+    public String getTo() {
+        return to;
     }
 }

@@ -282,6 +282,7 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
 
         searchRepository.registerSearch(new SearchEntry(
             trd.profile.getId(),
+            new Date(),
             trd.request.text,
             translation.text,
             translation.langConfig.getFrom(),
