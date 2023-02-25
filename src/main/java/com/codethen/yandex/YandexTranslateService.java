@@ -1,18 +1,26 @@
 package com.codethen.yandex;
 
+import java.io.IOException;
+
 import com.codethen.telegram.lanxatbot.profile.LangConfig;
-import com.codethen.telegram.lanxatbot.translate.*;
+import com.codethen.telegram.lanxatbot.translate.DetectRequest;
+import com.codethen.telegram.lanxatbot.translate.DetectResponse;
+import com.codethen.telegram.lanxatbot.translate.TranslationData;
+import com.codethen.telegram.lanxatbot.translate.TranslationException;
+import com.codethen.telegram.lanxatbot.translate.TranslationService;
 import com.codethen.yandex.model.TranslateResponse;
 import retrofit2.Call;
 import retrofit2.Response;
 
-import java.io.IOException;
-
-public class YandexService implements TranslationService {
+/**
+ * TODO (ferran) 25.02.2023 - currently doesn't work because the API has changed
+ * https://cloud.yandex.com/en-ru/docs/translate/
+ */
+public class YandexTranslateService implements TranslationService {
 
     private YandexApi yandexApi;
 
-    public YandexService(YandexApi yandexApi) {
+    public YandexTranslateService(YandexApi yandexApi) {
         this.yandexApi = yandexApi;
     }
 
@@ -33,13 +41,13 @@ public class YandexService implements TranslationService {
 
         final String langs = langConfigToUse.getFrom() + "-" + langConfigToUse.getTo(); // Format required by Yandex
 
-        final Call<TranslateResponse> call = yandexApi.translate(request.apiKey, request.text, langs);
+        // TODO (ferran) 25.02.2023 - set up API key
+        final Call<TranslateResponse> call = yandexApi.translate("API_KEY_HERE", request.text, langs);
         final TranslateResponse response = executeCall(call);
 
         final TranslationData result = new TranslationData();
         result.text = response.text.get(0);
         result.langConfig = langConfigToUse;
-        result.apiKey = request.apiKey;
         return result;
     }
 
@@ -58,12 +66,11 @@ public class YandexService implements TranslationService {
 
         final DetectRequest result = new DetectRequest();
         result.text = translationData.text;
-        // TODO: Note taht Yandex is actually worse with hints.
-        //       For example, in the first case correctly guesses "en", but in the second case it guesses "en":
+        // TODO: Note that Yandex is actually worse with hints.
+        //       For example, in the first case correctly guesses "es", but in the second case it guesses "en":
         //         https://translate.yandex.net/api/v1.5/tr.json/detect?text=hola&hint=&key=API_KEY
         //         https://translate.yandex.net/api/v1.5/tr.json/detect?text=hola&hint=en,es&key=API_KEY
         result.possibleLangs = translationData.langConfig.getHints();
-        result.apiKey = translationData.apiKey;
         return result;
     }
 

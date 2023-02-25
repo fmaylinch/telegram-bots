@@ -47,7 +47,7 @@ public class LangConfig {
     public String shortDescription() {
 
         if (shouldDetectLang()) {
-            return "(" + (hints.isEmpty() ? "*" : String.join(",", hints)) + ")" + ARROW + to;
+            return "(" + (hints.isEmpty() ? "any" : String.join(",", hints)) + ")" + ARROW + to;
         } else {
             return from + ARROW + to;
         }

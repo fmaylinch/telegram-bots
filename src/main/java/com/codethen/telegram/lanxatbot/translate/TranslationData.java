@@ -6,7 +6,6 @@ public class TranslationData {
 
     public String text;
     public LangConfig langConfig;
-    public String apiKey;
 
     public String getLangs() {
         return langConfig.shortDescription();

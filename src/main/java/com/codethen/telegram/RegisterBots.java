@@ -1,18 +1,16 @@
 package com.codethen.telegram;
 
+import com.codethen.google.GoogleTranslateService;
 import com.codethen.profile.CachedUserProfileRepository;
 import com.codethen.profile.MongoUserProfileRepository;
 import com.codethen.search.MongoSearchRepository;
 import com.codethen.telegram.lanxatbot.LanXatTelegramBot;
 import com.codethen.telegram.lanxatbot.profile.UserProfileRepository;
 import com.codethen.telegram.lanxatbot.search.SearchRepository;
-import com.codethen.yandex.YandexApiFactory;
-import com.codethen.yandex.YandexService;
 import com.mongodb.reactivestreams.client.MongoClient;
 import com.mongodb.reactivestreams.client.MongoClients;
 import org.telegram.telegrambots.meta.TelegramBotsApi;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
-import org.telegram.telegrambots.meta.generics.BotSession;
 import org.telegram.telegrambots.updatesreceivers.DefaultBotSession;
 
 public class RegisterBots {
@@ -50,7 +48,8 @@ public class RegisterBots {
                 new LanXatTelegramBot(
                         botName,
                         lanxatApiToken,
-                        new YandexService(YandexApiFactory.build()),
+                        //new YandexTranslateService(YandexApiFactory.build()),
+                        new GoogleTranslateService(),
                         userProfileRepository,
                         searchRepository));
 

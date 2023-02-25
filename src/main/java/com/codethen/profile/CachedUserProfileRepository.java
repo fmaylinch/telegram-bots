@@ -1,6 +1,6 @@
 package com.codethen.profile;
 
-import com.codethen.telegram.lanxatbot.exception.ProfileNotConfiguredException;
+import com.codethen.telegram.lanxatbot.exception.ProfileNotEnabledException;
 import com.codethen.telegram.lanxatbot.exception.ProfileNotExistsException;
 import com.codethen.telegram.lanxatbot.profile.UserProfile;
 import com.codethen.telegram.lanxatbot.profile.UserProfileRepository;
@@ -30,7 +30,7 @@ public class CachedUserProfileRepository implements UserProfileRepository {
                     public UserProfile load(@NotNull Long userId) {
                         final UserProfile profile = internalRepo.getProfileById(userId);
                         if (profile == null) throw new ProfileNotExistsException(userId);
-                        if (profile.getYandexApiKey() == null) throw new ProfileNotConfiguredException(profile);
+                        if (!profile.isEnabled()) throw new ProfileNotEnabledException(profile);
                         return profile;
                     }
                 });

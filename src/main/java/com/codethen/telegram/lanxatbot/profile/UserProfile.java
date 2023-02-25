@@ -17,8 +17,6 @@ public class UserProfile {
     private Long id;
     /** When the profile was created */
     private Date created;
-    /** Yandex API key that will be used to translate */
-    private String yandexApiKey;
     /** Language configurations that the user can use */
     private Map<String, LangConfig> langConfigs;
     private String firstName;
@@ -26,7 +24,7 @@ public class UserProfile {
     private String userName;
     private Boolean bot;
     private String languageCode;
-
+    private boolean enabled;
 
     public Long getId() {
         return id;
@@ -50,14 +48,6 @@ public class UserProfile {
 
     public void setLangConfigs(Map<String, LangConfig> langConfigs) {
         this.langConfigs = langConfigs;
-    }
-
-    public String getYandexApiKey() {
-        return yandexApiKey;
-    }
-
-    public void setYandexApiKey(String yandexApiKey) {
-        this.yandexApiKey = yandexApiKey;
     }
 
     public void setFirstName(String firstName) {
@@ -98,6 +88,14 @@ public class UserProfile {
 
     public String getLanguageCode() {
         return languageCode;
+    }
+
+    public void setEnabled(boolean enabled) {
+        this.enabled = enabled;
+    }
+
+    public boolean isEnabled() {
+        return enabled;
     }
 
     @Override

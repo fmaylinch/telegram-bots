@@ -82,7 +82,7 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
     private final TranslationService translationService;
 
     private final UserProfileRepository userProfileRepo;
-    private SearchRepository searchRepository;
+    private final SearchRepository searchRepository;
 
     public LanXatTelegramBot(String botName,
                              String apiToken,
@@ -122,13 +122,14 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
                 }
                 sendError(update, "You don't have a profile yet. This bot is in development. Ask the bot creator. Your userId is " + e.getUserId() +".");
 
-            } catch (ProfileNotConfiguredException e) {
+            } catch (ProfileNotEnabledException e) {
 
                 System.out.println("User does not have a configured profile: " + e.getUserProfile().getId());
                 sendError(update, "Your profile is not set up yet. Your userId is " + e.getUserProfile().getId() +".");
 
             } catch (LanXatException e) {
 
+                e.printStackTrace();
                 sendError(update, e.getMessage()); // TODO: This is not markdown
             }
 
@@ -248,7 +249,6 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
         final TranslationData revReq = new TranslationData();
         revReq.text = translation.text;
         revReq.langConfig = translation.langConfig.reverse();
-        revReq.apiKey = trd.request.apiKey;
 
         TranslationData revTranslation = translationService.translate(revReq);
         System.out.println("Reversed: '" + revTranslation.text + "'");
@@ -336,7 +336,6 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
     private TranslationData buildTranslationRequest(String query, UserProfile profile, SpecialLangConfig defaultConfig) {
 
         final TranslationData request = new TranslationData();
-        request.apiKey = profile.getYandexApiKey();
 
         final Matcher hintsAndLangsAndMessage = hintsAndLangsAndMessagePattern.matcher(query);
         if (hintsAndLangsAndMessage.matches()) {
@@ -427,8 +426,10 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
             System.out.println("Sent translation " + translation.getLangs() + ": '" + translation.text + "'");
             sendMessage(message, msg);
         } catch (TranslationException e) {
-            sendMessage(message, "There was an error with Yandex API: " + e.getMessage());
+            e.printStackTrace();
+            sendMessage(message, "There was an error with translation API: " + e.getMessage());
         } catch (TelegramApiException e) {
+            e.printStackTrace();
             sendMessage(message, "There was an error with Telegram API: " + e.getMessage());
         }
     }
