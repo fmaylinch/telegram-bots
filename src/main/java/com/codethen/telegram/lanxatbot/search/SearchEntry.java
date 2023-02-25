@@ -4,14 +4,14 @@ import java.util.Date;
 
 public class SearchEntry {
 
-    private final Integer userId;
+    private final Long userId;
     private Date date;
     private final String source;
     private final String target;
     private final String from;
     private final String to;
 
-    public SearchEntry(Integer userId, Date date, String source, String target, String from, String to) {
+    public SearchEntry(Long userId, Date date, String source, String target, String from, String to) {
         this.userId = userId;
         this.date = date;
         this.source = source;
@@ -20,7 +20,7 @@ public class SearchEntry {
         this.to = to;
     }
 
-    public Integer getUserId() {
+    public Long getUserId() {
         return userId;
     }
 

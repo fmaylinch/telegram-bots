@@ -26,7 +26,6 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMa
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
-import javax.annotation.Nullable;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
@@ -50,8 +49,8 @@ import static java.util.Collections.singletonList;
  */
 public class LanXatTelegramBot extends TelegramLongPollingBot {
 
-    private final HashMap<Integer, ObservableEmitter<TranslationRequestData>> translationEmitters;
-    private final HashMap<Integer, Disposable> translationSubscriptions;
+    private final HashMap<Long, ObservableEmitter<TranslationRequestData>> translationEmitters;
+    private final HashMap<Long, Disposable> translationSubscriptions;
 
     private enum Command {
 
@@ -146,12 +145,11 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
         userProfile.setFirstName(user.getFirstName());
         userProfile.setLastName(user.getLastName());
         userProfile.setUserName(user.getUserName());
-        userProfile.setBot(user.getBot());
+        userProfile.setBot(user.getIsBot());
         userProfile.setLanguageCode(user.getLanguageCode());
         return userProfile;
     }
 
-    @Nullable
     private User getUserFrom(Update update) {
         if (update.hasMessage()) return update.getMessage().getFrom();
         if (update.hasInlineQuery()) return update.getInlineQuery().getFrom();
@@ -193,7 +191,7 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
      */
     private void throttleTranslation(TranslationRequestData trd) {
 
-        final Integer userId = trd.profile.getId();
+        final Long userId = trd.profile.getId();
 
         if (!translationEmitters.containsKey(userId)) {
 
@@ -259,15 +257,15 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
         final String langFrom = translation.langConfig.getFrom();
         final String langToRev = revTranslation.langConfig.getTo();
 
-        execute(new AnswerInlineQuery()
-                .setInlineQueryId(trd.inlineQuery.getId())
-                .setCacheTime(0) // TODO: Maybe adjust later as needed
-                .setResults(
+        execute(AnswerInlineQuery.builder()
+                .inlineQueryId(trd.inlineQuery.getId())
+                .cacheTime(0) // TODO: Maybe adjust later as needed
+                .results(List.of(
                         buildResult(getThumbnail(langTo), langTo, translation.text, "1"),
                         buildResult(getThumbnail(langFrom), langFrom + " (original)", trd.request.text, "2"),
                         buildResult(getThumbnail(revTranslation.langConfig.getTo()), translation.getLangs() + ARROW + langToRev + " (reversed)", revTranslation.text, "3"),
                         buildResult(null, translation.langConfig.getFrom() + " / " + translation.langConfig.getTo(), "- " + trd.request.text + "\n" + "- " + translation.text, "4")
-                ));
+                )).build());
     }
 
     private void saveSearch(TranslationRequestData trd, TranslationData translation) {
@@ -289,12 +287,12 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
 
     private void displayInlineHelpButton(InlineQuery inlineQuery, String text) throws TelegramApiException {
 
-        execute(new AnswerInlineQuery()
-                .setInlineQueryId(inlineQuery.getId())
-                .setCacheTime(0)
-                .setSwitchPmText(text)
-                .setSwitchPmParameter(HELP_INLINE_START_PARAM)
-                .setResults());
+        execute(AnswerInlineQuery.builder()
+                .inlineQueryId(inlineQuery.getId())
+                .cacheTime(0)
+                .switchPmText(text)
+                .switchPmParameter(HELP_INLINE_START_PARAM)
+                .build());
     }
 
     /**
@@ -436,10 +434,11 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
     }
 
     private void sendMessage(Message originalMessage, String markdown) throws TelegramApiException {
-        execute(new SendMessage()
-                .setChatId(originalMessage.getChatId())
-                .setText(markdown)
-                .setParseMode(ParseMode.MARKDOWN));
+        execute(SendMessage.builder()
+                .chatId(originalMessage.getChatId())
+                .text(markdown)
+                .parseMode(ParseMode.MARKDOWN)
+                .build());
     }
 
     private void processCommand(Message message) throws TelegramApiException {
@@ -459,7 +458,7 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
      * Sets or removes a language configuration and sends a message about the change.
      * If the langConfigName is a {@link SpecialLangConfig}, it won't be removed (it's not allowed).
      */
-    private void setupLangConfig(String langConfigName, @Nullable LangConfig langConfig, Message message) throws TelegramApiException {
+    private void setupLangConfig(String langConfigName, LangConfig langConfig, Message message) throws TelegramApiException {
 
         final UserProfile profile = getProfile(message.getFrom());
         final String langConfigAsMarkdown = "`" + langConfigNameToPattern(langConfigName) + "`";
@@ -582,16 +581,19 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
                             "Try the inline mode by clicking the button below!" +
                             "";
 
-            execute(new SendMessage()
-                    .setChatId(message.getChatId())
-                    .setText(markdown)
-                    .setParseMode(ParseMode.MARKDOWN)
-                    .setReplyMarkup(new InlineKeyboardMarkup()
-                            .setKeyboard(singletonList(singletonList(
-                                    new InlineKeyboardButton()
-                                            .setText("Try the inline mode!")
-                                            .setSwitchInlineQuery("Have you tried @" + getBotUsername() + "?")
-                            )))));
+            execute(SendMessage.builder()
+                    .chatId(message.getChatId())
+                    .text(markdown)
+                    .parseMode(ParseMode.MARKDOWN)
+                    .replyMarkup(InlineKeyboardMarkup.builder()
+                            .keyboard(singletonList(singletonList(
+                                    InlineKeyboardButton.builder()
+                                            .text("Try the inline mode!")
+                                            .switchInlineQuery("Have you tried @" + getBotUsername() + "?")
+                                            .build()
+                            )))
+                            .build())
+                    .build());
 
         } else  {
 
@@ -646,20 +648,23 @@ public class LanXatTelegramBot extends TelegramLongPollingBot {
 
         final String id = "1"; // Each result should have a different id
 
-        execute(new AnswerInlineQuery()
-                .setInlineQueryId(inlineQuery.getId())
-                .setResults(buildResult(null, title, markdown, id)));
+        execute(AnswerInlineQuery.builder()
+                .inlineQueryId(inlineQuery.getId())
+                .results(List.of(buildResult(null, title, markdown, id)))
+                .build());
     }
 
     private InlineQueryResultArticle buildResult(String thumbUrl, String title, String markdownText, String resultId) {
-        return new InlineQueryResultArticle()
-                .setId(resultId)
-                .setTitle(title)
-                .setDescription(markdownText)
-                .setThumbUrl(thumbUrl)
-                .setInputMessageContent(new InputTextMessageContent()
-                        .setParseMode(ParseMode.MARKDOWN)
-                        .setMessageText(markdownText));
+        return InlineQueryResultArticle.builder()
+                .id(resultId)
+                .title(title)
+                .description(markdownText)
+                .thumbUrl(thumbUrl)
+                .inputMessageContent(InputTextMessageContent.builder()
+                        .parseMode(ParseMode.MARKDOWN)
+                        .messageText(markdownText)
+                        .build())
+                .build();
     }
 
     public String getBotUsername() {

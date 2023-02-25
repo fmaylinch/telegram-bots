@@ -8,13 +8,14 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.util.concurrent.UncheckedExecutionException;
+import org.jetbrains.annotations.NotNull;
 
 import java.time.Duration;
 import java.util.concurrent.ExecutionException;
 
 public class CachedUserProfileRepository implements UserProfileRepository {
 
-    private final LoadingCache<Integer, UserProfile> repoCache;
+    private final LoadingCache<Long, UserProfile> repoCache;
     private final UserProfileRepository internalRepo;
 
     public CachedUserProfileRepository(UserProfileRepository internalRepo) {
@@ -23,9 +24,10 @@ public class CachedUserProfileRepository implements UserProfileRepository {
 
         repoCache = CacheBuilder.newBuilder()
                 .expireAfterWrite(Duration.ofMinutes(5))
-                .build(new CacheLoader<Integer, UserProfile>() {
+                .build(new CacheLoader<>() {
+                    @NotNull
                     @Override
-                    public UserProfile load(Integer userId) {
+                    public UserProfile load(@NotNull Long userId) {
                         final UserProfile profile = internalRepo.getProfileById(userId);
                         if (profile == null) throw new ProfileNotExistsException(userId);
                         if (profile.getYandexApiKey() == null) throw new ProfileNotConfiguredException(profile);
@@ -35,7 +37,7 @@ public class CachedUserProfileRepository implements UserProfileRepository {
     }
 
     @Override
-    public UserProfile getProfileById(Integer userId) {
+    public UserProfile getProfileById(Long userId) {
         try {
             System.out.println("Loading profile, maybe from cache: " + userId);
             return repoCache.get(userId);

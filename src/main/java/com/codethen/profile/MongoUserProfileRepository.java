@@ -20,7 +20,7 @@ public class MongoUserProfileRepository implements UserProfileRepository {
 
     @Nullable
     @Override
-    public UserProfile getProfileById(Integer userId) {
+    public UserProfile getProfileById(Long userId) {
 
         System.out.println("Loading profile from database: " + userId);
 

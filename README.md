@@ -2,9 +2,10 @@
 
 Telegram bots using the [Telegram Bot Java Library][bot lib].
 
-## Project
+## Project
 
-The project mixes Java and Kotlin, and uses Spring Boot.
+The project mixes Java and Kotlin,
+and is launched via [Spring Boot][LanXatBotSpringBootApp].
 For now there's just a simple [StatusController]
 to check that the application started correctly.
 
@@ -46,9 +47,9 @@ If you want to push the docker image to docker hub:
 docker push fmaylinch/lanxatbot
 ```
 
-
+[LanXatBotSpringBootApp]: src/main/java/com/codethen/LanXatBotSpringBootApp.java
 [bot lib]: https://github.com/rubenlagus/TelegramBots
-[StatusController]: src/main/java/com/codethen/api/StatusController.kt
+[StatusController]: src/main/kotlin/com/codethen/api/StatusController.kt
 [LanXatTelegramBot]: src/main/java/com/codethen/telegram/lanxatbot/LanXatTelegramBot.java
 [inline bot]: https://core.telegram.org/bots/inline
 [Yandex Translate API]: https://tech.yandex.com/translate/

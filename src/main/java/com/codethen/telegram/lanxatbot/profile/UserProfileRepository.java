@@ -4,6 +4,6 @@ import com.codethen.telegram.lanxatbot.exception.ProfileNotExistsException;
 
 public interface UserProfileRepository {
 
-    UserProfile getProfileById(Integer userId) throws ProfileNotExistsException;
+    UserProfile getProfileById(Long userId) throws ProfileNotExistsException;
     void saveOrUpdate(UserProfile profile);
 }

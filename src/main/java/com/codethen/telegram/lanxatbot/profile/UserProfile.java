@@ -14,7 +14,7 @@ import java.util.Map;
 public class UserProfile {
 
     /** Telegram userId */
-    private Integer id;
+    private Long id;
     /** When the profile was created */
     private Date created;
     /** Yandex API key that will be used to translate */
@@ -28,11 +28,11 @@ public class UserProfile {
     private String languageCode;
 
 
-    public Integer getId() {
+    public Long getId() {
         return id;
     }
 
-    public void setId(Integer id) {
+    public void setId(Long id) {
         this.id = id;
     }
 

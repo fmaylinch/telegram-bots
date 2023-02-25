@@ -10,13 +10,14 @@ import com.codethen.yandex.YandexApiFactory;
 import com.codethen.yandex.YandexService;
 import com.mongodb.reactivestreams.client.MongoClient;
 import com.mongodb.reactivestreams.client.MongoClients;
-import org.telegram.telegrambots.ApiContextInitializer;
 import org.telegram.telegrambots.meta.TelegramBotsApi;
-import org.telegram.telegrambots.meta.exceptions.TelegramApiRequestException;
+import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
+import org.telegram.telegrambots.meta.generics.BotSession;
+import org.telegram.telegrambots.updatesreceivers.DefaultBotSession;
 
 public class RegisterBots {
 
-    public static void main(String[] args) throws TelegramApiRequestException {
+    public static void main(String[] args) throws TelegramApiException {
 
         // TODO: Setup logger
 
@@ -30,12 +31,11 @@ public class RegisterBots {
         registerBots(connectionString, databaseName, telegramBotName, telegramBotApiToken);
     }
 
-    public static void registerBots(String connectionString, String databaseName, String botName, String lanxatApiToken) throws TelegramApiRequestException {
+    public static void registerBots(String connectionString, String databaseName, String botName, String lanxatApiToken) throws TelegramApiException {
 
         System.out.println("Registering bots...");
 
-        ApiContextInitializer.init();
-        final TelegramBotsApi api = new TelegramBotsApi();
+        final TelegramBotsApi api = new TelegramBotsApi(DefaultBotSession.class);
 
         final MongoClient mongoClient = MongoClients.create(connectionString);
 
@@ -46,7 +46,7 @@ public class RegisterBots {
         final SearchRepository searchRepository =
             new MongoSearchRepository(mongoClient, databaseName);
 
-        api.registerBot(
+        var session = api.registerBot(
                 new LanXatTelegramBot(
                         botName,
                         lanxatApiToken,
@@ -54,7 +54,7 @@ public class RegisterBots {
                         userProfileRepository,
                         searchRepository));
 
-        System.out.println("Bots registered!");
+        System.out.println("Bot registered: " + botName);
     }
 
     private static String getEnvChecked(String name) {
