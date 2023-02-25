@@ -62,31 +62,6 @@ public class YandexTranslateService implements TranslationService {
         return executeCall(call);
     }
 
-    private DetectRequest buildDetectRequest(TranslationData translationData) {
-
-        final DetectRequest result = new DetectRequest();
-        result.text = translationData.text;
-        // TODO: Note that Yandex is actually worse with hints.
-        //       For example, in the first case correctly guesses "es", but in the second case it guesses "en":
-        //         https://translate.yandex.net/api/v1.5/tr.json/detect?text=hola&hint=&key=API_KEY
-        //         https://translate.yandex.net/api/v1.5/tr.json/detect?text=hola&hint=en,es&key=API_KEY
-        result.possibleLangs = translationData.langConfig.getHints();
-        return result;
-    }
-
-    /**
-     * Usually would return langConfig.to, which is the desired target language, but if it's the same as
-     * detected.lang, then returns langConfig.from.
-     *
-     * For example, suppose source language (langConfig.from) is "en" and the desired target language
-     * is "ru" (langConfig.to). When the message is written in "ru" (detected.lang), then this method would
-     * decide that the desired target language is "en".
-     */
-    private String decideLangTo(DetectResponse detected, LangConfig langConfig) {
-
-        return detected.lang.equals(langConfig.getTo()) ? langConfig.getFrom() : langConfig.getTo();
-    }
-
     private <T> T executeCall(Call<T> call) {
 
         final Response<T> response;
