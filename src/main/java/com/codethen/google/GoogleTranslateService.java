@@ -26,60 +26,59 @@ public class GoogleTranslateService implements TranslationService {
 
     private static final String PROJECT_ID = "yandex-terraform";
 
-    @Override
-    public TranslationData translate(TranslationData request) throws TranslationException {
+    private final TranslationServiceClient client;
+
+    public GoogleTranslateService() {
         try {
-            try (TranslationServiceClient client = TranslationServiceClient.create()) {
-                LocationName parent = LocationName.of(PROJECT_ID, "global");
-
-                LangConfig langConfigToUse = langConfigToUse(request);
-                System.out.println("Translating " + langConfigToUse.shortDescription() + " : '" + request.text + "'");
-
-                TranslateTextRequest req =
-                        TranslateTextRequest.newBuilder()
-                                .setParent(parent.toString())
-                                .setMimeType("text/plain")
-                                .setSourceLanguageCode(langConfigToUse.getFrom())
-                                .setTargetLanguageCode(langConfigToUse.getTo())
-                                .addContents(request.text)
-                                .build();
-
-                TranslateTextResponse response = client.translateText(req);
-
-                // Display the translation for each input text provided
-                for (Translation translation : response.getTranslationsList()) {
-                    final TranslationData result = new TranslationData();
-                    result.text = translation.getTranslatedText();
-                    result.langConfig = langConfigToUse;
-                    return result;
-                }
-
-                throw new LanXatException("Could not find translation for text: " + request.text);
-            }
+            this.client = TranslationServiceClient.create();
         } catch (IOException e) {
-            throw new LanXatException("IOException while translating", e);
+            throw new RuntimeException("Could not create Google Translate client", e);
         }
     }
 
     @Override
-    public DetectResponse detect(DetectRequest request) throws TranslationException {
-        try (TranslationServiceClient client = TranslationServiceClient.create()) {
-            LocationName parent = LocationName.of(PROJECT_ID, "global");
+    public TranslationData translate(TranslationData request) throws TranslationException {
+        LocationName parent = LocationName.of(PROJECT_ID, "global");
 
-            var req = DetectLanguageRequest.newBuilder()
-                    .setParent(parent.toString())
-                    .setMimeType("text/plain")
-                    .setContent(request.text)
-                    .build();
+        LangConfig langConfigToUse = langConfigToUse(request);
+        System.out.println("Translating " + langConfigToUse.shortDescription() + " : '" + request.text + "'");
 
-            var response = client.detectLanguage(req);
+        TranslateTextRequest req =
+                TranslateTextRequest.newBuilder()
+                        .setParent(parent.toString())
+                        .setMimeType("text/plain")
+                        .setSourceLanguageCode(langConfigToUse.getFrom())
+                        .setTargetLanguageCode(langConfigToUse.getTo())
+                        .addContents(request.text)
+                        .build();
 
-            var langs = response.getLanguagesList().stream().map(DetectedLanguage::getLanguageCode).toList();
-            System.out.println("Detected languages: " + langs);
-            return new DetectResponse(langs);
+        TranslateTextResponse response = client.translateText(req);
 
-        } catch (IOException e) {
-            throw new LanXatException("IOException while detecting language", e);
+        // Display the translation for each input text provided
+        for (Translation translation : response.getTranslationsList()) {
+            final TranslationData result = new TranslationData();
+            result.text = translation.getTranslatedText();
+            result.langConfig = langConfigToUse;
+            return result;
         }
+
+        throw new LanXatException("Could not find translation for text: " + request.text);
+    }
+
+    @Override
+    public DetectResponse detect(DetectRequest request) throws TranslationException {
+        LocationName parent = LocationName.of(PROJECT_ID, "global");
+
+        var req = DetectLanguageRequest.newBuilder()
+                .setParent(parent.toString())
+                .setMimeType("text/plain")
+                .setContent(request.text)
+                .build();
+
+        var response = client.detectLanguage(req);
+
+        var langs = response.getLanguagesList().stream().map(DetectedLanguage::getLanguageCode).toList();
+        System.out.println("Detected languages: " + langs);
+        return new DetectResponse(langs);
     }
 }
