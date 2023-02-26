@@ -17,6 +17,11 @@ import com.google.cloud.translate.v3.TranslateTextResponse;
 import com.google.cloud.translate.v3.Translation;
 import com.google.cloud.translate.v3.TranslationServiceClient;
 
+/**
+ * This service needs a key to work.
+ * The GOOGLE_APPLICATION_CREDENTIALS env var should point to the key file.
+ * Look for the Translation API tutorial in Java.
+ */
 public class GoogleTranslateService implements TranslationService {
 
     private static final String PROJECT_ID = "yandex-terraform";

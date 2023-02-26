@@ -4,8 +4,7 @@ Telegram bots using the [Telegram Bot Java Library][bot lib].
 
 ## Project
 
-The project mixes Java and Kotlin,
-and is launched via [Spring Boot][LanXatBotSpringBootApp].
+The project is launched via [Spring Boot][LanXatBotSpringBootApp].
 For now there's just a simple [StatusController]
 to check that the application started correctly.
 

@@ -11,6 +11,6 @@ public class StatusController {
     @GetMapping("status")
     @Produces("plain/text")
     public String status() {
-        return "v0.6.4 - Updated dependencies";
+        return "v0.7.0 - Translation via Google";
     }
 }
