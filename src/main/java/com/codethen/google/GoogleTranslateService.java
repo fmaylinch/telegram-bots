@@ -27,17 +27,8 @@ public class GoogleTranslateService implements TranslationService {
             try (TranslationServiceClient client = TranslationServiceClient.create()) {
                 LocationName parent = LocationName.of(PROJECT_ID, "global");
 
-                System.out.println("Translating " + request.getLangs() + " : '" + request.text + "'");
-
-                final LangConfig langConfigToUse;
-
-                if (request.langConfig.shouldDetectLang()) {
-                    final DetectResponse detectResponse = detect(buildDetectRequest(request));
-                    final String langTo = decideLangTo(detectResponse, request.langConfig);
-                    langConfigToUse = new LangConfig(null, detectResponse.lang, langTo);
-                } else {
-                    langConfigToUse = request.langConfig;
-                }
+                LangConfig langConfigToUse = langConfigToUse(request);
+                System.out.println("Translating " + langConfigToUse.shortDescription() + " : '" + request.text + "'");
 
                 TranslateTextRequest req =
                         TranslateTextRequest.newBuilder()
@@ -78,11 +69,9 @@ public class GoogleTranslateService implements TranslationService {
 
             var response = client.detectLanguage(req);
 
-            var langCodes = response.getLanguagesList().stream().map(DetectedLanguage::getLanguageCode).toList();
-            System.out.println("Detected languages: " + langCodes);
-            var result = new DetectResponse();
-            result.lang = langCodes.get(0);
-            return result;
+            var langs = response.getLanguagesList().stream().map(DetectedLanguage::getLanguageCode).toList();
+            System.out.println("Detected languages: " + langs);
+            return new DetectResponse(langs);
 
         } catch (IOException e) {
             throw new LanXatException("IOException while detecting language", e);

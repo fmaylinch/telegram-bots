@@ -1,6 +1,6 @@
 package com.codethen.yandex;
 
-import com.codethen.telegram.lanxatbot.translate.DetectResponse;
+import com.codethen.yandex.model.DetectResponse;
 import com.codethen.yandex.model.GetLangsResponse;
 import com.codethen.yandex.model.TranslateResponse;
 import retrofit2.Call;

@@ -1,6 +1,7 @@
 package com.codethen.yandex;
 
 import java.io.IOException;
+import java.util.List;
 
 import com.codethen.telegram.lanxatbot.profile.LangConfig;
 import com.codethen.telegram.lanxatbot.translate.DetectRequest;
@@ -27,17 +28,8 @@ public class YandexTranslateService implements TranslationService {
     @Override
     public TranslationData translate(TranslationData request) throws TranslationException {
 
-        System.out.println("Translating " + request.getLangs() + " : '" + request.text + "'");
-
-        final LangConfig langConfigToUse;
-
-        if (request.langConfig.shouldDetectLang()) {
-            final DetectResponse detectResponse = detect(buildDetectRequest(request));
-            final String langTo = decideLangTo(detectResponse, request.langConfig);
-            langConfigToUse = new LangConfig(null, detectResponse.lang, langTo);
-        } else {
-            langConfigToUse = request.langConfig;
-        }
+        LangConfig langConfigToUse = langConfigToUse(request);
+        System.out.println("Translating " + langConfigToUse.shortDescription() + " : '" + request.text + "'");
 
         final String langs = langConfigToUse.getFrom() + "-" + langConfigToUse.getTo(); // Format required by Yandex
 
@@ -57,9 +49,9 @@ public class YandexTranslateService implements TranslationService {
         final String hint = request.possibleLangs == null ? "" :
                 String.join(",", request.possibleLangs);
 
-        final Call<DetectResponse> call = yandexApi.detect(request.apiKey, request.text, hint);
+        var response = executeCall(yandexApi.detect(request.apiKey, request.text, hint));
 
-        return executeCall(call);
+        return new DetectResponse(List.of(response.lang));
     }
 
     private <T> T executeCall(Call<T> call) {

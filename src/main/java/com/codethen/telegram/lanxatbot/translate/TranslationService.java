@@ -16,6 +16,16 @@ public interface TranslationService {
 
     DetectResponse detect(DetectRequest request) throws TranslationException;
 
+    default LangConfig langConfigToUse(TranslationData request) {
+        if (request.langConfig.shouldDetectLang()) {
+            final DetectResponse detectResponse = detect(buildDetectRequest(request));
+            final String langTo = decideLangTo(detectResponse, request.langConfig);
+            return new LangConfig(null, detectResponse.langs.get(0), langTo);
+        } else {
+            return request.langConfig;
+        }
+    }
+
     default DetectRequest buildDetectRequest(TranslationData translationData) {
         final DetectRequest result = new DetectRequest();
         result.text = translationData.text;
@@ -32,7 +42,7 @@ public interface TranslationService {
      * decide that the desired target language is "en".
      */
     default String decideLangTo(DetectResponse detected, LangConfig langConfig) {
-        return detected.lang.equals(langConfig.getTo()) ? langConfig.getFrom() : langConfig.getTo();
+        return detected.langs.get(0).equals(langConfig.getTo()) ? langConfig.getFrom() : langConfig.getTo();
     }
 
 }
